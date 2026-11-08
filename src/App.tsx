@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, Shield, CheckCircle2, RefreshCw, Trash2, Phone, Mail, 
-  MapPin, Calendar, Settings, FileText, Calculator, DollarSign 
+  MapPin, Calendar, Settings, FileText, Send, DollarSign, Calculator 
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
@@ -28,7 +28,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pinError, setPinError] = useState('');
 
-  // Admin Configurable Pricing Settings
+  // Admin Configurable Pricing Rules
   const [pricingConfig, setPricingConfig] = useState({
     baseRate: 120,
     perSqFtRate: 0.10,
@@ -60,12 +60,13 @@ export default function App() {
   // Admin Data State
   const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
+  const [customPrices, setCustomPrices] = useState<{ [key: string]: number }>({});
 
-  // Background Quote & Deposit Calculation
-  const calculateQuoteDetails = () => {
-    const sqft = parseFloat(formData.sqft) || 0;
-    const beds = parseInt(formData.bedrooms) || 0;
-    const baths = parseInt(formData.bathrooms) || 0;
+  // Helper to compute quote estimate for any lead
+  const computeLeadEstimate = (sqftStr: string, bedsStr: string, bathsStr: string, serviceType: string) => {
+    const sqft = parseFloat(sqftStr) || 0;
+    const beds = parseInt(bedsStr) || 0;
+    const baths = parseInt(bathsStr) || 0;
 
     let base = pricingConfig.baseRate;
     base += sqft * pricingConfig.perSqFtRate;
@@ -73,8 +74,8 @@ export default function App() {
     base += baths * pricingConfig.bathroomRate;
 
     let multiplier = 1.0;
-    if (formData.serviceType === 'Deep Clean') multiplier = pricingConfig.deepCleanMultiplier;
-    if (formData.serviceType === 'Move In/Out') multiplier = pricingConfig.moveInOutMultiplier;
+    if (serviceType === 'Deep Clean') multiplier = pricingConfig.deepCleanMultiplier;
+    if (serviceType === 'Move In/Out') multiplier = pricingConfig.moveInOutMultiplier;
 
     const totalEstimate = Math.round(base * multiplier);
     const requiredDeposit = Math.round(totalEstimate * (pricingConfig.depositPercentage / 100));
@@ -135,6 +136,38 @@ export default function App() {
     }
   };
 
+  const handleCustomPriceChange = (id: string, value: number) => {
+    setCustomPrices(prev => ({ ...prev, [id]: value }));
+  };
+
+  const handleSendProposal = (q: QuoteRequest) => {
+    const defaults = computeLeadEstimate(q.sqft, q.bedrooms, q.bathrooms, q.service_type);
+    const finalPrice = customPrices[q.id] !== undefined ? customPrices[q.id] : defaults.totalEstimate;
+    const finalDeposit = Math.round(finalPrice * (pricingConfig.depositPercentage / 100));
+
+    const subject = encodeURIComponent(`Official Cleaning Service Quote & Proposal - JJ Cleaning Services LLC`);
+    const body = encodeURIComponent(
+      `Hello ${q.full_name || 'Valued Client'},\n\n` +
+      `Thank you for requesting a quote from JJ Cleaning Services LLC!\n\n` +
+      `PROPOSAL DETAILS:\n` +
+      `----------------------------\n` +
+      `Service Type: ${q.service_type || 'Cleaning Service'}\n` +
+      `Property Details: ${q.sqft ? `${q.sqft} sq ft, ` : ''}${q.bedrooms || 0} Bed / ${q.bathrooms || 0} Bath\n` +
+      `Service Location: ${q.address || 'Specified Address'}\n` +
+      `Requested Date: ${q.preferred_date || 'To be scheduled'}\n\n` +
+      `PRICING SUMMARY:\n` +
+      `----------------------------\n` +
+      `Estimated Cleaning Total: $${finalPrice}\n` +
+      `Required Deposit (${pricingConfig.depositPercentage}%): $${finalDeposit}\n\n` +
+      `To lock in your date, please reply to this email or call us to confirm your booking.\n\n` +
+      `Best regards,\n` +
+      `JJ Cleaning Services LLC\n` +
+      `Owner / Operator`
+    );
+
+    window.open(`mailto:${q.email}?subject=${subject}&body=${body}`, '_blank');
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -143,13 +176,6 @@ export default function App() {
     e.preventDefault();
     setLoading(true);
     setErrorMessage('');
-
-    // Automatically compute pricing estimates based on current Admin Rules
-    const { totalEstimate, requiredDeposit } = calculateQuoteDetails();
-
-    const noteDetails = formData.notes 
-      ? `[Est. Total: $${totalEstimate} | Deposit (${pricingConfig.depositPercentage}%): $${requiredDeposit}] — ${formData.notes}`
-      : `[Est. Total: $${totalEstimate} | Deposit (${pricingConfig.depositPercentage}%): $${requiredDeposit}]`;
 
     const payload = {
       full_name: formData.fullName || null,
@@ -161,7 +187,7 @@ export default function App() {
       bedrooms: formData.bedrooms ? String(formData.bedrooms) : null,
       bathrooms: formData.bathrooms ? String(formData.bathrooms) : null,
       preferred_date: formData.preferredDate || null,
-      notes: noteDetails,
+      notes: formData.notes || null,
       status: 'pending'
     };
 
@@ -286,65 +312,103 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {quotes.map((q) => (
-                        <div key={q.id} className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
-                            <div>
-                              <span className="text-base font-bold text-slate-900">{q.full_name || 'Anonymous Lead'}</span>
-                              <span className="text-xs text-slate-400 block sm:inline sm:ml-3">
-                                Submitted: {new Date(q.created_at).toLocaleString()}
-                              </span>
+                      {quotes.map((q) => {
+                        const calculated = computeLeadEstimate(q.sqft, q.bedrooms, q.bathrooms, q.service_type);
+                        const currentPrice = customPrices[q.id] !== undefined ? customPrices[q.id] : calculated.totalEstimate;
+                        const currentDeposit = Math.round(currentPrice * (pricingConfig.depositPercentage / 100));
+
+                        return (
+                          <div key={q.id} className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                              <div>
+                                <span className="text-base font-bold text-slate-900">{q.full_name || 'Anonymous Lead'}</span>
+                                <span className="text-xs text-slate-400 block sm:inline sm:ml-3">
+                                  Submitted: {new Date(q.created_at).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={q.status || 'pending'}
+                                  onChange={(e) => handleStatusChange(q.id, e.target.value)}
+                                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-300 bg-white"
+                                >
+                                  <option value="pending">Pending</option>
+                                  <option value="contacted">Contacted</option>
+                                  <option value="scheduled">Scheduled</option>
+                                  <option value="completed">Completed</option>
+                                </select>
+                                <button
+                                  onClick={() => handleDelete(q.id)}
+                                  className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg transition"
+                                  title="Delete Lead"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <select
-                                value={q.status || 'pending'}
-                                onChange={(e) => handleStatusChange(q.id, e.target.value)}
-                                className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-300 bg-white"
-                              >
-                                <option value="pending">Pending</option>
-                                <option value="contacted">Contacted</option>
-                                <option value="scheduled">Scheduled</option>
-                                <option value="completed">Completed</option>
-                              </select>
-                              <button
-                                onClick={() => handleDelete(q.id)}
-                                className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg transition"
-                                title="Delete Lead"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-600">
+                              <div className="flex items-center gap-2">
+                                <Mail className="w-4 h-4 text-slate-400" />
+                                <a href={`mailto:${q.email}`} className="hover:underline font-medium text-slate-800">{q.email || 'N/A'}</a>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Phone className="w-4 h-4 text-slate-400" />
+                                <a href={`tel:${q.phone}`} className="hover:underline font-medium text-slate-800">{q.phone || 'N/A'}</a>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <MapPin className="w-4 h-4 text-slate-400" />
+                                <span>{q.address || 'N/A'}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-slate-400" />
+                                <span>Pref Date: {q.preferred_date || 'Flexible'}</span>
+                              </div>
+                              <div><strong className="text-slate-800">Service:</strong> {q.service_type || 'Standard'}</div>
+                              <div><strong className="text-slate-800">Specs:</strong> {q.sqft ? `${q.sqft} sq ft | ` : ''}{q.bedrooms} Bed / {q.bathrooms} Bath</div>
+                            </div>
+
+                            {q.notes && (
+                              <div className="p-3 bg-white rounded-lg border border-slate-200 text-xs text-slate-700">
+                                <strong className="block text-slate-900 mb-0.5">Notes / Instructions:</strong>
+                                {q.notes}
+                              </div>
+                            )}
+
+                            {/* Quote Pricing & Proposal Dispatch Tool */}
+                            <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-3">
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                <div>
+                                  <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider block">Admin Quote Calculator</span>
+                                  <span className="text-xs text-slate-500">Auto-calculated: ${calculated.totalEstimate} | Deposit: ${calculated.requiredDeposit}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-xs font-bold text-slate-700">$</span>
+                                    <input
+                                      type="number"
+                                      value={currentPrice}
+                                      onChange={(e) => handleCustomPriceChange(q.id, parseFloat(e.target.value) || 0)}
+                                      className="w-24 px-2 py-1 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                      title="Override Price"
+                                    />
+                                  </div>
+                                  <button
+                                    onClick={() => handleSendProposal(q)}
+                                    className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
+                                  >
+                                    <Send className="w-3.5 h-3.5" />
+                                    Send Proposal via Email
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="text-[11px] text-emerald-800">
+                                <strong>Client Quote:</strong> Total ${currentPrice} — Deposit (${pricingConfig.depositPercentage}%): ${currentDeposit}
+                              </div>
                             </div>
                           </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-600">
-                            <div className="flex items-center gap-2">
-                              <Mail className="w-4 h-4 text-slate-400" />
-                              <a href={`mailto:${q.email}`} className="hover:underline font-medium text-slate-800">{q.email || 'N/A'}</a>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Phone className="w-4 h-4 text-slate-400" />
-                              <a href={`tel:${q.phone}`} className="hover:underline font-medium text-slate-800">{q.phone || 'N/A'}</a>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <MapPin className="w-4 h-4 text-slate-400" />
-                              <span>{q.address || 'N/A'}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4 text-slate-400" />
-                              <span>Pref Date: {q.preferred_date || 'Flexible'}</span>
-                            </div>
-                            <div><strong className="text-slate-800">Service:</strong> {q.service_type || 'Standard'}</div>
-                            <div><strong className="text-slate-800">Specs:</strong> {q.sqft ? `${q.sqft} sq ft | ` : ''}{q.bedrooms} Bed / {q.bathrooms} Bath</div>
-                          </div>
-
-                          {q.notes && (
-                            <div className="p-3 bg-white rounded-lg border border-slate-200 text-xs text-slate-700">
-                              <strong className="block text-slate-900 mb-0.5">Calculated Estimate & Notes:</strong>
-                              {q.notes}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )
                 ) : (
