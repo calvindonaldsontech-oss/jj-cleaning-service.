@@ -28,13 +28,14 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pinError, setPinError] = useState('');
 
-  // Admin Configurable Pricing Rules
+  // Admin Configurable Full Pricing Rules & Multipliers
   const [pricingConfig, setPricingConfig] = useState({
     baseRate: 120,
     perSqFtRate: 0.10,
     bedroomRate: 25,
     bathroomRate: 35,
     depositPercentage: 25,
+    standardCleanMultiplier: 1.0,
     deepCleanMultiplier: 1.4,
     moveInOutMultiplier: 1.5,
   });
@@ -62,7 +63,7 @@ export default function App() {
   const [loadingQuotes, setLoadingQuotes] = useState(false);
   const [customPrices, setCustomPrices] = useState<{ [key: string]: number }>({});
 
-  // Helper to compute quote estimate for any lead
+  // Dynamic Quote & Deposit Calculation
   const computeLeadEstimate = (sqftStr: string, bedsStr: string, bathsStr: string, serviceType: string) => {
     const sqft = parseFloat(sqftStr) || 0;
     const beds = parseInt(bedsStr) || 0;
@@ -73,7 +74,7 @@ export default function App() {
     base += beds * pricingConfig.bedroomRate;
     base += baths * pricingConfig.bathroomRate;
 
-    let multiplier = 1.0;
+    let multiplier = pricingConfig.standardCleanMultiplier;
     if (serviceType === 'Deep Clean') multiplier = pricingConfig.deepCleanMultiplier;
     if (serviceType === 'Move In/Out') multiplier = pricingConfig.moveInOutMultiplier;
 
@@ -140,32 +141,33 @@ export default function App() {
     setCustomPrices(prev => ({ ...prev, [id]: value }));
   };
 
+  // Fixed Email Dispatch (Direct location change prevents about:blank popups)
   const handleSendProposal = (q: QuoteRequest) => {
     const defaults = computeLeadEstimate(q.sqft, q.bedrooms, q.bathrooms, q.service_type);
     const finalPrice = customPrices[q.id] !== undefined ? customPrices[q.id] : defaults.totalEstimate;
     const finalDeposit = Math.round(finalPrice * (pricingConfig.depositPercentage / 100));
 
-    const subject = encodeURIComponent(`Official Cleaning Service Quote & Proposal - JJ Cleaning Services LLC`);
+    const subject = encodeURIComponent(`Official Cleaning Proposal - JJ Cleaning Services LLC`);
     const body = encodeURIComponent(
       `Hello ${q.full_name || 'Valued Client'},\n\n` +
-      `Thank you for requesting a quote from JJ Cleaning Services LLC!\n\n` +
-      `PROPOSAL DETAILS:\n` +
-      `----------------------------\n` +
+      `Thank you for reaching out to JJ Cleaning Services LLC!\n\n` +
+      `SERVICE & PROPERTY DETAILS:\n` +
+      `----------------------------------------\n` +
       `Service Type: ${q.service_type || 'Cleaning Service'}\n` +
-      `Property Details: ${q.sqft ? `${q.sqft} sq ft, ` : ''}${q.bedrooms || 0} Bed / ${q.bathrooms || 0} Bath\n` +
-      `Service Location: ${q.address || 'Specified Address'}\n` +
-      `Requested Date: ${q.preferred_date || 'To be scheduled'}\n\n` +
-      `PRICING SUMMARY:\n` +
-      `----------------------------\n` +
-      `Estimated Cleaning Total: $${finalPrice}\n` +
+      `Specs: ${q.sqft ? `${q.sqft} sq ft, ` : ''}${q.bedrooms || 0} Bedroom(s) / ${q.bathrooms || 0} Bathroom(s)\n` +
+      `Address: ${q.address || 'As specified'}\n` +
+      `Preferred Date: ${q.preferred_date || 'Flexible'}\n\n` +
+      `OFFICIAL QUOTE:\n` +
+      `----------------------------------------\n` +
+      `Total Cleaning Estimate: $${finalPrice}\n` +
       `Required Deposit (${pricingConfig.depositPercentage}%): $${finalDeposit}\n\n` +
-      `To lock in your date, please reply to this email or call us to confirm your booking.\n\n` +
+      `To confirm your appointment date, please reply directly to this email or contact us by phone.\n\n` +
       `Best regards,\n` +
-      `JJ Cleaning Services LLC\n` +
-      `Owner / Operator`
+      `Calvin Donaldson\n` +
+      `JJ Cleaning Services LLC`
     );
 
-    window.open(`mailto:${q.email}?subject=${subject}&body=${body}`, '_blank');
+    window.location.href = `mailto:${q.email}?subject=${subject}&body=${body}`;
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -412,16 +414,16 @@ export default function App() {
                     </div>
                   )
                 ) : (
-                  /* Admin Pricing Rules Configuration */
+                  /* Admin Pricing Rules & Service Multipliers */
                   <div className="space-y-6">
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900">Configure Estimator Rules</h3>
-                      <p className="text-xs text-slate-500">Adjust baseline rates and deposit requirements for automated lead pricing.</p>
+                      <h3 className="text-lg font-bold text-slate-900">Configure Estimator Rules & Multipliers</h3>
+                      <p className="text-xs text-slate-500">Set base rates, square footage pricing, room rates, and service multipliers.</p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Base Rate ($)</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Base Cleaning Fee ($)</label>
                         <input
                           type="number"
                           value={pricingConfig.baseRate}
@@ -458,6 +460,26 @@ export default function App() {
                         />
                       </div>
                       <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Deep Clean Rate Multiplier</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={pricingConfig.deepCleanMultiplier}
+                          onChange={(e) => setPricingConfig({ ...pricingConfig, deepCleanMultiplier: parseFloat(e.target.value) || 1.0 })}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Move In/Out Multiplier</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={pricingConfig.moveInOutMultiplier}
+                          onChange={(e) => setPricingConfig({ ...pricingConfig, moveInOutMultiplier: parseFloat(e.target.value) || 1.0 })}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
                         <label className="block text-xs font-bold text-slate-700 mb-1">Required Deposit (%)</label>
                         <input
                           type="number"
@@ -473,7 +495,7 @@ export default function App() {
             )}
           </div>
         ) : (
-          /* Client View - Single Card Form */
+          /* Client View - Clean Proposal Form */
           <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-md border border-slate-200 max-w-2xl mx-auto">
             {submitted ? (
               <div className="text-center py-10 space-y-4">
