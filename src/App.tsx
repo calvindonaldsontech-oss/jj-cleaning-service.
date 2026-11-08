@@ -30,20 +30,20 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [pinError, setPinError] = useState('');
 
-  // Proposal Builder State (With Customer Comments)
+  // Proposal Builder State
   const [clientInfo, setClientInfo] = useState({
-    name: 'Jay Jay test',
-    email: 'jjcleaningservice3@gmail.com',
-    phone: '3473018330',
-    address: '2026 queen New York',
-    notes: 'Need asap - please pay extra attention to kitchen area'
+    name: 'CALVIN Donaldson',
+    email: 'linkcalvin@gmail.com',
+    phone: '3019967875',
+    address: '1000 Fash Ln Apt#1301',
+    notes: 'Access instructions, special requests...'
   });
 
   const [jobDetails, setJobDetails] = useState({
     bedrooms: 2,
-    bathrooms: 3,
-    sqft: 900,
-    serviceType: 'Move-In / Move-Out',
+    bathrooms: 2,
+    sqft: 1500,
+    serviceType: 'Deep Cleaning',
     customOverride: ''
   });
 
@@ -65,7 +65,7 @@ export default function App() {
 
   const [includeSalesTax, setIncludeSalesTax] = useState(true);
 
-  // Fully Editable Admin Rate Configuration (Service Types & Add-Ons)
+  // Rate Configuration
   const [rates, setRates] = useState({
     baseFee: 180,
     bedroomRate: 45,
@@ -99,11 +99,21 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
 
+  // Helper to compile active discount labels
+  const getActiveDiscountNames = () => {
+    const names = [];
+    if (discounts.firstTime) names.push('First-Time Client (10%)');
+    if (discounts.referral) names.push('Referral (10%)');
+    if (discounts.loyalty) names.push('Loyalty Member (5%)');
+    if (discounts.seasonal) names.push('Seasonal Promotion (15%)');
+    return names.length > 0 ? names.join(', ') : 'Promotional Discount';
+  };
+
   // Calculation Engine
   const calculateProposal = () => {
-    let sqFtRate = rates.moveInOutSqFt;
+    let sqFtRate = rates.deepSqFt;
     if (jobDetails.serviceType === 'General Recurring Cleaning') sqFtRate = rates.generalSqFt;
-    if (jobDetails.serviceType === 'Deep Cleaning') sqFtRate = rates.deepSqFt;
+    if (jobDetails.serviceType === 'Move-In / Move-Out') sqFtRate = rates.moveInOutSqFt;
     if (jobDetails.serviceType === 'Post-Construction Clean') sqFtRate = rates.postConstructionSqFt;
     if (jobDetails.serviceType === 'Post-Flood Deep Cleaning & Sanitation') sqFtRate = rates.postFloodSqFt;
 
@@ -122,7 +132,6 @@ export default function App() {
 
     const rawSubtotal = baseSubtotal + addonsTotal;
 
-    // Calculate Discount Percentage (Capped at 25%)
     let discountPercent = 0;
     if (discounts.firstTime) discountPercent += 0.10;
     if (discounts.referral) discountPercent += 0.10;
@@ -130,13 +139,13 @@ export default function App() {
     if (discounts.seasonal) discountPercent += 0.15;
     if (discountPercent > 0.25) discountPercent = 0.25;
 
-    // Discount specifically calculated against Base Service Subtotal so customers see exact savings
     const baseDiscountAmount = baseSubtotal * discountPercent;
     const discountAmount = rawSubtotal * discountPercent;
 
     let subtotalAfterDiscount = rawSubtotal - discountAmount;
+    const isFlatRateOverride = jobDetails.customOverride && parseFloat(jobDetails.customOverride) > 0;
 
-    if (jobDetails.customOverride && parseFloat(jobDetails.customOverride) > 0) {
+    if (isFlatRateOverride) {
       subtotalAfterDiscount = parseFloat(jobDetails.customOverride);
     }
 
@@ -147,7 +156,9 @@ export default function App() {
 
     return { 
       baseServiceFee, sqFtRate, sqFtTotal, roomTotal, baseSubtotal, 
-      addonsTotal, discountPercent, baseDiscountAmount, discountAmount, totalEstimate, depositRequired, remainingBalance, salesTax 
+      addonsTotal, discountPercent, baseDiscountAmount, discountAmount, 
+      discountNames: getActiveDiscountNames(),
+      isFlatRateOverride, totalEstimate, depositRequired, remainingBalance, salesTax 
     };
   };
 
@@ -244,8 +255,7 @@ export default function App() {
       `Client: ${clientInfo.name}\n` +
       `Address: ${clientInfo.address}\n` +
       `Service: ${jobDetails.serviceType}\n` +
-      `Base Cleaning Subtotal: $${calc.baseSubtotal.toFixed(2)}\n` +
-      (calc.discountAmount > 0 ? `Promotional Savings (${(calc.discountPercent * 100).toFixed(0)}% OFF Base Rate): -$${calc.baseDiscountAmount.toFixed(2)}\n` : '') +
+      (calc.discountAmount > 0 ? `Discount Applied: ${calc.discountNames} (-$${calc.baseDiscountAmount.toFixed(2)})\n` : '') +
       `Total Estimate: $${calc.totalEstimate}\n` +
       `Required Deposit (${rates.depositPercent}%): $${calc.depositRequired}\n` +
       `Remaining Balance: $${calc.remainingBalance}\n` +
@@ -266,11 +276,9 @@ export default function App() {
       `Service Type: ${jobDetails.serviceType}\n` +
       `Property Specs: ${jobDetails.sqft} sq ft, ${jobDetails.bedrooms} Bed / ${jobDetails.bathrooms} Bath\n` +
       `Service Location: ${clientInfo.address}\n` +
-      (clientInfo.notes ? `Customer Instructions: ${clientInfo.notes}\n\n` : '\n') +
-      `PRICING & DISCOUNT BREAKDOWN:\n` +
+      (calc.discountAmount > 0 ? `Discount Applied: ${calc.discountNames} (-$${calc.baseDiscountAmount.toFixed(2)})\n\n` : '\n') +
+      `PRICING & BALANCE BREAKDOWN:\n` +
       `----------------------------------------\n` +
-      `Base Cleaning Subtotal: $${calc.baseSubtotal.toFixed(2)}\n` +
-      (calc.discountAmount > 0 ? `Special Discount (${(calc.discountPercent * 100).toFixed(0)}% OFF): -$${calc.baseDiscountAmount.toFixed(2)}\n` : '') +
       `Total Cleaning Price: $${calc.totalEstimate}\n` +
       `Required Deposit (${rates.depositPercent}%): $${calc.depositRequired}\n` +
       `Remaining Balance Due Upon Completion: $${calc.remainingBalance}\n\n` +
@@ -357,7 +365,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* CLIENT PROPOSAL VIEW WITH ITEMIZED BASE DISCOUNT DISPLAY */}
+        {/* CLIENT PROPOSAL VIEW */}
         {viewingProposal && proposalData ? (
           <div className="bg-white p-6 sm:p-10 rounded-2xl shadow-md border border-slate-200 space-y-8 max-w-3xl mx-auto">
             <div className="flex items-center justify-between border-b border-slate-200 pb-4">
@@ -416,38 +424,48 @@ export default function App() {
               </div>
             </div>
 
-            {/* Services & Itemized Base Discount Breakdown */}
+            {/* Services & Conditional Breakdown */}
             <div className="space-y-3">
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Services & Base Rate Discount</h3>
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Services & Pricing</h3>
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
                 <div className="flex justify-between font-bold text-slate-900 text-sm">
-                  <span>{proposalData.job.serviceType}</span>
+                  <span>{proposalData.job.serviceType} {proposalData.calc.isFlatRateOverride ? '(Flat Rate Package)' : ''}</span>
                   <span>${proposalData.calc.totalEstimate.toFixed(2)}</span>
                 </div>
                 <p className="text-slate-500">{proposalData.job.bedrooms} bed, {proposalData.job.bathrooms} bath, {proposalData.job.sqft} sq ft</p>
-                <div className="pt-2 border-t border-slate-200 space-y-1 text-slate-600">
-                  <div className="flex justify-between"><span>Base Cleaning Fee</span><span>${proposalData.calc.baseServiceFee.toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span>Bedrooms & Bathrooms Subtotal</span><span>${proposalData.calc.roomTotal.toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span>Square Footage Subtotal</span><span>${proposalData.calc.sqFtTotal.toFixed(2)}</span></div>
-                  <div className="flex justify-between font-bold text-slate-800 pt-1 border-t border-slate-200">
-                    <span>Base Service Subtotal</span>
-                    <span>${proposalData.calc.baseSubtotal.toFixed(2)}</span>
-                  </div>
-
-                  {/* Explicit Base Service Discount Display */}
-                  {proposalData.calc.discountAmount > 0 && (
-                    <div className="flex justify-between text-emerald-700 font-bold p-2 bg-emerald-50 rounded-lg border border-emerald-200 my-1">
-                      <span className="flex items-center gap-1">
-                        <Tag className="w-3.5 h-3.5 text-emerald-600" />
-                        Promotional Savings ({(proposalData.calc.discountPercent * 100).toFixed(0)}% OFF Base Service Subtotal)
-                      </span>
-                      <span>-${proposalData.calc.baseDiscountAmount.toFixed(2)}</span>
+                
+                {proposalData.calc.isFlatRateOverride ? (
+                  <div className="pt-2 border-t border-slate-200 space-y-1 text-slate-600">
+                    <div className="flex justify-between font-bold text-slate-800">
+                      <span>Flat Rate Package Total</span>
+                      <span>${proposalData.calc.totalEstimate.toFixed(2)}</span>
                     </div>
-                  )}
+                  </div>
+                ) : (
+                  <div className="pt-2 border-t border-slate-200 space-y-1 text-slate-600">
+                    <div className="flex justify-between"><span>Base Cleaning Fee</span><span>${proposalData.calc.baseServiceFee.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span>Bedrooms & Bathrooms Subtotal</span><span>${proposalData.calc.roomTotal.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span>Square Footage Subtotal</span><span>${proposalData.calc.sqFtTotal.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-bold text-slate-800 pt-1 border-t border-slate-200">
+                      <span>Base Service Subtotal</span>
+                      <span>${proposalData.calc.baseSubtotal.toFixed(2)}</span>
+                    </div>
 
-                  {proposalData.calc.addonsTotal > 0 && <div className="flex justify-between pt-1"><span>Add-on Services</span><span>${proposalData.calc.addonsTotal.toFixed(2)}</span></div>}
-                  {proposalData.calc.salesTax > 0 && <div className="flex justify-between"><span>Sales Tax (8.25%)</span><span>${proposalData.calc.salesTax.toFixed(2)}</span></div>}
-                </div>
+                    {/* Displays Specific Discount Name */}
+                    {proposalData.calc.discountAmount > 0 && (
+                      <div className="flex justify-between text-emerald-700 font-bold p-2 bg-emerald-50 rounded-lg border border-emerald-200 my-1">
+                        <span className="flex items-center gap-1">
+                          <Tag className="w-3.5 h-3.5 text-emerald-600" />
+                          {proposalData.calc.discountNames}
+                        </span>
+                        <span>-${proposalData.calc.baseDiscountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    {proposalData.calc.addonsTotal > 0 && <div className="flex justify-between pt-1"><span>Add-on Services</span><span>${proposalData.calc.addonsTotal.toFixed(2)}</span></div>}
+                    {proposalData.calc.salesTax > 0 && <div className="flex justify-between"><span>Sales Tax (8.25%)</span><span>${proposalData.calc.salesTax.toFixed(2)}</span></div>}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -680,7 +698,6 @@ export default function App() {
                         />
                       </div>
                       
-                      {/* Customer Comments & Special Instructions */}
                       <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">Customer Comments / Special Instructions</label>
                         <textarea
@@ -747,7 +764,7 @@ export default function App() {
                           placeholder="$ Leave blank to calculate by formula"
                           value={jobDetails.customOverride}
                           onChange={(e) => setJobDetails({ ...jobDetails, customOverride: e.target.value })}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-emerald-700"
                         />
                       </div>
                     </div>
@@ -834,7 +851,7 @@ export default function App() {
                         </div>
                         {calc.discountAmount > 0 && (
                           <div className="flex justify-between text-emerald-700 font-bold p-1.5 bg-emerald-100/60 rounded my-1">
-                            <span>Promotional Savings ({(calc.discountPercent * 100).toFixed(0)}% OFF Base Rate)</span>
+                            <span>{calc.discountNames}</span>
                             <span>-${calc.baseDiscountAmount.toFixed(2)}</span>
                           </div>
                         )}
@@ -924,7 +941,7 @@ export default function App() {
                   )
                 )}
 
-                {/* RATE & SERVICE PRICING SETTINGS TAB (PRICE ADJUSTABILITY) */}
+                {/* RATE SETTINGS TAB */}
                 {activeAdminTab === 'settings' && (
                   <div className="space-y-8">
                     <div>
@@ -934,22 +951,22 @@ export default function App() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Move-In / Move-Out Rate ($/sq ft)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={rates.moveInOutSqFt}
-                          onChange={(e) => setRates({ ...rates, moveInOutSqFt: parseFloat(e.target.value) || 0 })}
-                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
-                        />
-                      </div>
-                      <div>
                         <label className="block text-xs font-bold text-slate-700 mb-1">Deep Cleaning Rate ($/sq ft)</label>
                         <input
                           type="number"
                           step="0.01"
                           value={rates.deepSqFt}
                           onChange={(e) => setRates({ ...rates, deepSqFt: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Move-In / Move-Out Rate ($/sq ft)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={rates.moveInOutSqFt}
+                          onChange={(e) => setRates({ ...rates, moveInOutSqFt: parseFloat(e.target.value) || 0 })}
                           className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
                         />
                       </div>
@@ -973,21 +990,10 @@ export default function App() {
                           className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
                         />
                       </div>
-                      <div className="sm:col-span-2">
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Post-Flood Sanitation Rate ($/sq ft)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={rates.postFloodSqFt}
-                          onChange={(e) => setRates({ ...rates, postFloodSqFt: parseFloat(e.target.value) || 0 })}
-                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
-                        />
-                      </div>
                     </div>
 
                     <div className="pt-4 border-t border-slate-200">
                       <h3 className="text-lg font-bold text-slate-900 mb-1">Price Adjustability - Add-On Services ($)</h3>
-                      <p className="text-xs text-slate-500 mb-4">Set flat rate pricing for individual add-on options.</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-xs font-bold text-slate-700 mb-1">Inside Oven ($)</label>
@@ -1025,28 +1031,9 @@ export default function App() {
                             className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
                           />
                         </div>
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1">Baseboards Deep Wipe ($)</label>
-                          <input
-                            type="number"
-                            value={rates.addonBaseboards}
-                            onChange={(e) => setRates({ ...rates, addonBaseboards: parseFloat(e.target.value) || 0 })}
-                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1">Heavy Stain / Flood Treatment ($)</label>
-                          <input
-                            type="number"
-                            value={rates.addonHeavyStain}
-                            onChange={(e) => setRates({ ...rates, addonHeavyStain: parseFloat(e.target.value) || 0 })}
-                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
-                          />
-                        </div>
                       </div>
                     </div>
 
-                    {/* Admin Security PIN Changer */}
                     <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
                       <h4 className="text-sm font-bold text-slate-900">Admin Security PIN</h4>
                       <div className="flex gap-2 max-w-sm">
@@ -1071,7 +1058,7 @@ export default function App() {
             )}
           </div>
         ) : (
-          /* PUBLIC CLIENT SUBMISSION FORM (With Customer Instructions / Comments) */
+          /* CLIENT SUBMISSION FORM */
           <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-md border border-slate-200 max-w-2xl mx-auto space-y-6">
             <form onSubmit={async (e) => {
               e.preventDefault();
@@ -1111,8 +1098,6 @@ export default function App() {
                 <label className="block text-xs font-bold text-slate-700 mb-1">Service Address *</label>
                 <input required type="text" value={clientInfo.address} onChange={(e) => setClientInfo({ ...clientInfo, address: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl" />
               </div>
-
-              {/* Customer Comments Field on Public Form */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Customer Comments / Special Instructions</label>
                 <textarea
