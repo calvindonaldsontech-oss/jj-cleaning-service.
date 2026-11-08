@@ -105,7 +105,7 @@ export default function App() {
   const [copyStatus, setCopyStatus] = useState('');
   const [reviewCopyStatus, setReviewCopyStatus] = useState<{ [key: string]: string }>({});
 
-  const autobooksUrl = "https://app.autobooks.co/pay/jjcleaningservice?utm_medium=qr&utm_source=printed-pf-qr&utm_campaign=activation";
+  const autobooksUrl = "https://app.autobooks.co/pay/jjcleaningservice";
 
   const getActiveDiscountNames = () => {
     const names = [];
@@ -303,7 +303,6 @@ export default function App() {
     }, 3000);
   };
 
-  // UPDATED: Opens Gmail web directly in a new browser tab with subject and proposal body
   const handleSendEmailProposal = () => {
     const recipient = encodeURIComponent(clientInfo.email || '');
     const subject = encodeURIComponent(`Official Cleaning Proposal - JJ Cleaning Services LLC`);
@@ -322,7 +321,8 @@ export default function App() {
       `Total Cleaning Price: $${calc.totalEstimate}\n` +
       `Required Deposit (${rates.depositPercent}%): $${calc.depositRequired}\n` +
       `Remaining Balance Due Upon Completion: $${calc.remainingBalance}\n\n` +
-      `Pay Deposit Online: ${autobooksUrl}\n\n` +
+      `Pay Deposit Online:\n` +
+      `${autobooksUrl}\n\n` +
       `Best regards,\n` +
       `JJ Cleaning Services LLC`
     );
