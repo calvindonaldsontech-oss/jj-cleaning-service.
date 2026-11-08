@@ -303,7 +303,9 @@ export default function App() {
     }, 3000);
   };
 
+  // UPDATED: Opens Gmail web directly in a new browser tab with subject and proposal body
   const handleSendEmailProposal = () => {
+    const recipient = encodeURIComponent(clientInfo.email || '');
     const subject = encodeURIComponent(`Official Cleaning Proposal - JJ Cleaning Services LLC`);
     const body = encodeURIComponent(
       `Hello ${clientInfo.name || 'Valued Client'},\n\n` +
@@ -325,7 +327,8 @@ export default function App() {
       `JJ Cleaning Services LLC`
     );
 
-    window.location.href = `mailto:${clientInfo.email}?subject=${subject}&body=${body}`;
+    const gmailWebUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${recipient}&su=${subject}&body=${body}`;
+    window.open(gmailWebUrl, '_blank');
   };
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -370,7 +373,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-100 py-8 px-4 sm:px-6 lg:px-8 font-sans flex flex-col justify-between">
       <div className="max-w-4xl mx-auto space-y-6 w-full">
         
-        {/* Top Header - Cleaned up with no admin toggle */}
+        {/* Top Header */}
         <div className="flex items-center justify-between bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-600/30">
