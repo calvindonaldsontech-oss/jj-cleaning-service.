@@ -22,12 +22,12 @@ interface QuoteRequest {
 }
 
 export default function App() {
-  const [isAdmin, setIsAdmin] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false); // Defaults to client view for shared link visitors
   const [activeAdminTab, setActiveAdminTab] = useState<'builder' | 'leads' | 'settings'>('builder');
   const [pinInput, setPinInput] = useState('');
   const [adminPin, setAdminPin] = useState('5678');
   const [newPin, setNewPin] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // Fixed: starts locked so PIN is required
+  const [isAuthenticated, setIsAuthenticated] = useState(false); // Admin dashboard starts locked
   const [pinError, setPinError] = useState('');
 
   // Proposal Builder State
@@ -100,7 +100,6 @@ export default function App() {
   const [copyStatus, setCopyStatus] = useState('');
   const [reviewCopyStatus, setReviewCopyStatus] = useState<{ [key: string]: string }>({});
 
-  // Helper to compile active discount labels
   const getActiveDiscountNames = () => {
     const names = [];
     if (discounts.firstTime) names.push('First-Time Client (10%)');
@@ -110,7 +109,6 @@ export default function App() {
     return names.length > 0 ? names.join(', ') : 'Promotional Discount';
   };
 
-  // Calculation Engine
   const calculateProposal = () => {
     let sqFtRate = rates.deepSqFt;
     if (jobDetails.serviceType === 'General Recurring Cleaning') sqFtRate = rates.generalSqFt;
@@ -290,7 +288,7 @@ export default function App() {
   };
 
   const handleCopyReviewLink = (clientName: string, id: string) => {
-    const reviewText = `Hi ${clientName || 'Valued Client'}, thank you again for choosing JJ Cleaning Services LLC! We hope you love your freshly cleaned home. If you were happy with our service today, we would truly appreciate a quick Google review here: https://g.page/r/YOUR_GOOGLE_REVIEW_LINK (Replace with your actual link). Have a wonderful day!`;
+    const reviewText = `Hi ${clientName || 'Valued Client'}, thank you again for choosing JJ Cleaning Services LLC! We hope you love your freshly cleaned home. If you were happy with our service today, we would truly appreciate a quick Google review here: https://g.page/r/YOUR_GOOGLE_REVIEW_LINK. Have a wonderful day!`;
     navigator.clipboard.writeText(reviewText);
     setReviewCopyStatus({ ...reviewCopyStatus, [id]: 'Review Link Copied!' });
     setTimeout(() => {
@@ -323,7 +321,6 @@ export default function App() {
     window.location.href = `mailto:${clientInfo.email}?subject=${subject}&body=${body}`;
   };
 
-  // Canvas Signature Handlers
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     setIsDrawing(true);
     const canvas = canvasRef.current;
@@ -641,7 +638,7 @@ export default function App() {
                   <Shield className="w-6 h-6" />
                 </div>
                 <h2 className="text-xl font-bold text-slate-900">Admin Authentication</h2>
-                <p className="text-xs text-slate-500">Enter your 4-digit PIN (Default: {adminPin})</p>
+                <p className="text-xs text-slate-500">Enter your 4-digit PIN</p>
                 {pinError && <p className="text-xs text-red-600 font-medium">{pinError}</p>}
                 <input
                   type="password"
