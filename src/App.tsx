@@ -1,12 +1,30 @@
-import React, { useState } from 'react';
-import { Sparkles, Shield, Calculator, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sparkles, Shield, CheckCircle2, RefreshCw, Trash2, Phone, Mail, MapPin, Calendar } from 'lucide-react';
 import { supabase } from './lib/supabase';
+
+interface QuoteRequest {
+  id: string;
+  created_at: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  address: string;
+  service_type: string;
+  sqft: string;
+  bedrooms: string;
+  bathrooms: string;
+  preferred_date: string;
+  notes: string;
+  status: string;
+}
 
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [pinInput, setPinInput] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pinError, setPinError] = useState('');
 
+  // Form State
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -24,18 +42,65 @@ export default function App() {
   const [submitted, setSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  // Admin Data State
+  const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
+  const [loadingQuotes, setLoadingQuotes] = useState(false);
+
+  const fetchQuotes = async () => {
+    setLoadingQuotes(true);
+    const { data, error } = await supabase
+      .from('quote_requests')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setQuotes(data as QuoteRequest[]);
+    }
+    setLoadingQuotes(false);
   };
+
+  useEffect(() => {
+    if (isAdmin && isAuthenticated) {
+      fetchQuotes();
+    }
+  }, [isAdmin, isAuthenticated]);
 
   const handleAdminAccess = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pinInput === '1234' || pinInput === '0000') { // Adjust PIN as needed
-      setIsAdmin(true);
+    if (pinInput === '1234' || pinInput === '0000') {
+      setIsAuthenticated(true);
       setPinError('');
     } else {
-      setPinError('Invalid Admin PIN');
+      setPinError('Invalid Admin PIN. Try 1234');
     }
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    const { error } = await supabase
+      .from('quote_requests')
+      .update({ status: newStatus })
+      .eq('id', id);
+
+    if (!error) {
+      fetchQuotes();
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to delete this quote request?')) {
+      const { error } = await supabase
+        .from('quote_requests')
+        .delete()
+        .eq('id', id);
+
+      if (!error) {
+        fetchQuotes();
+      }
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,7 +138,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 py-8 px-4 sm:px-6 lg:px-8 font-sans">
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Header & Branding */}
         <div className="flex flex-col sm:flex-row items-center justify-between bg-white p-6 rounded-2xl shadow-sm border border-slate-200 gap-4">
@@ -110,23 +175,123 @@ export default function App() {
 
         {/* View Switcher: Admin vs Client */}
         {isAdmin ? (
-          <div className="bg-white p-8 rounded-2xl shadow-md border border-slate-200 space-y-6">
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <Shield className="w-6 h-6 text-slate-900" />
-              <h2 className="text-xl font-bold text-slate-900">Admin Control Panel</h2>
-            </div>
-            <p className="text-sm text-slate-600">
-              Logged in as Administrator. All requests submitted via the client view drop straight into your Supabase database table.
-            </p>
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Database Status</span>
-              <span className="text-sm font-semibold text-emerald-600 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Connected to Supabase (quote_requests)
-              </span>
-            </div>
+          <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-md border border-slate-200 space-y-6">
+            {!isAuthenticated ? (
+              <form onSubmit={handleAdminAccess} className="max-w-sm mx-auto space-y-4 py-6 text-center">
+                <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-700">
+                  <Shield className="w-6 h-6" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-900">Admin Authentication</h2>
+                <p className="text-xs text-slate-500">Enter your PIN to access backend leads (Default: 1234)</p>
+                {pinError && <p className="text-xs text-red-600 font-medium">{pinError}</p>}
+                <input
+                  type="password"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  placeholder="Enter PIN"
+                  className="w-full text-center px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-mono text-lg tracking-widest focus:ring-2 focus:ring-slate-900 outline-none"
+                />
+                <button
+                  type="submit"
+                  className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition"
+                >
+                  Unlock Admin Dashboard
+                </button>
+              </form>
+            ) : (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-3">
+                    <Shield className="w-6 h-6 text-emerald-600" />
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-900">Backend Lead Management</h2>
+                      <p className="text-xs text-slate-500">Live submissions from Supabase quote_requests table</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={fetchQuotes}
+                    disabled={loadingQuotes}
+                    className="flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200 transition"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingQuotes ? 'animate-spin' : ''}`} />
+                    Refresh Leads
+                  </button>
+                </div>
+
+                {loadingQuotes ? (
+                  <p className="text-center py-8 text-slate-500 text-sm">Loading backend leads...</p>
+                ) : quotes.length === 0 ? (
+                  <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    <p className="text-slate-500 text-sm">No quote requests found in backend database.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {quotes.map((q) => (
+                      <div key={q.id} className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                          <div>
+                            <span className="text-base font-bold text-slate-900">{q.full_name || 'Anonymous Lead'}</span>
+                            <span className="text-xs text-slate-400 block sm:inline sm:ml-3">
+                              Submitted: {new Date(q.created_at).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={q.status || 'pending'}
+                              onChange={(e) => handleStatusChange(q.id, e.target.value)}
+                              className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-300 bg-white"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="contacted">Contacted</option>
+                              <option value="scheduled">Scheduled</option>
+                              <option value="completed">Completed</option>
+                            </select>
+                            <button
+                              onClick={() => handleDelete(q.id)}
+                              className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg transition"
+                              title="Delete Lead"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs text-slate-600">
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-4 h-4 text-slate-400" />
+                            <a href={`mailto:${q.email}`} className="hover:underline font-medium text-slate-800">{q.email || 'N/A'}</a>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Phone className="w-4 h-4 text-slate-400" />
+                            <a href={`tel:${q.phone}`} className="hover:underline font-medium text-slate-800">{q.phone || 'N/A'}</a>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-slate-400" />
+                            <span>{q.address || 'N/A'}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-slate-400" />
+                            <span>Pref Date: {q.preferred_date || 'Flexible'}</span>
+                          </div>
+                          <div><strong className="text-slate-800">Service:</strong> {q.service_type || 'Standard'}</div>
+                          <div><strong className="text-slate-800">Specs:</strong> {q.sqft ? `${q.sqft} sq ft | ` : ''}{q.bedrooms} Bed / {q.bathrooms} Bath</div>
+                        </div>
+
+                        {q.notes && (
+                          <div className="p-3 bg-white rounded-lg border border-slate-200 text-xs text-slate-700">
+                            <strong className="block text-slate-900 mb-0.5">Notes / Special Instructions:</strong>
+                            {q.notes}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
-          <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-md border border-slate-200">
+          <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-md border border-slate-200 max-w-2xl mx-auto">
             {submitted ? (
               <div className="text-center py-10 space-y-4">
                 <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
