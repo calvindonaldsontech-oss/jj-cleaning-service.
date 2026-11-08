@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, Shield, CheckCircle2, RefreshCw, Trash2, Phone, Mail, 
-  MapPin, Calendar, Settings, FileText, Send, DollarSign, Calculator 
+  MapPin, Calendar, Settings, FileText, Send, Copy, Printer, PenTool, Lock 
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
@@ -25,10 +25,20 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeAdminTab, setActiveAdminTab] = useState<'leads' | 'settings'>('leads');
   const [pinInput, setPinInput] = useState('');
+  const [adminPin, setAdminPin] = useState('1234');
+  const [newPin, setNewPin] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pinError, setPinError] = useState('');
+  const [pinSuccess, setPinSuccess] = useState('');
 
-  // Admin Configurable Full Pricing Rules & Multipliers
+  // Proposal Modal State
+  const [showProposalModal, setShowProposalModal] = useState(false);
+  const [selectedLeadForProposal, setSelectedLeadForProposal] = useState<QuoteRequest | null>(null);
+  const [printedName, setPrintedName] = useState('');
+  const [isSigned, setIsSigned] = useState(false);
+  const [copyStatus, setCopyStatus] = useState('');
+
+  // Admin Configurable Pricing Rules
   const [pricingConfig, setPricingConfig] = useState({
     baseRate: 120,
     perSqFtRate: 0.10,
@@ -47,7 +57,7 @@ export default function App() {
     phone: '',
     address: '',
     serviceType: 'Deep Clean',
-    sqft: '1500',
+    sqft: '800',
     bedrooms: '2',
     bathrooms: '2',
     preferredDate: '',
@@ -75,14 +85,17 @@ export default function App() {
     base += baths * pricingConfig.bathroomRate;
 
     let multiplier = pricingConfig.standardCleanMultiplier;
-    if (serviceType === 'Deep Clean') multiplier = pricingConfig.deepCleanMultiplier;
+    if (serviceType === 'Deep Clean' || serviceType === 'Deep Cleaning') multiplier = pricingConfig.deepCleanMultiplier;
     if (serviceType === 'Move In/Out') multiplier = pricingConfig.moveInOutMultiplier;
 
     const totalEstimate = Math.round(base * multiplier);
     const requiredDeposit = Math.round(totalEstimate * (pricingConfig.depositPercentage / 100));
+    const remainingBalance = totalEstimate - requiredDeposit;
 
-    return { totalEstimate, requiredDeposit };
+    return { totalEstimate, requiredDeposit, remainingBalance };
   };
+
+  const currentClientCalc = computeLeadEstimate(formData.sqft, formData.bedrooms, formData.bathrooms, formData.serviceType);
 
   const fetchQuotes = async () => {
     setLoadingQuotes(true);
@@ -105,11 +118,21 @@ export default function App() {
 
   const handleAdminAccess = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pinInput === '1234' || pinInput === '0000') {
+    if (pinInput === adminPin || pinInput === '0000') {
       setIsAuthenticated(true);
       setPinError('');
     } else {
-      setPinError('Invalid Admin PIN. (Default: 1234)');
+      setPinError(`Invalid Admin PIN. (Current PIN: ${adminPin})`);
+    }
+  };
+
+  const handlePinChange = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPin.length >= 4) {
+      setAdminPin(newPin);
+      setNewPin('');
+      setPinSuccess('Admin Security PIN updated successfully!');
+      setTimeout(() => setPinSuccess(''), 4000);
     }
   };
 
@@ -141,33 +164,60 @@ export default function App() {
     setCustomPrices(prev => ({ ...prev, [id]: value }));
   };
 
-  // Fixed Email Dispatch (Direct location change prevents about:blank popups)
-  const handleSendProposal = (q: QuoteRequest) => {
-    const defaults = computeLeadEstimate(q.sqft, q.bedrooms, q.bathrooms, q.service_type);
-    const finalPrice = customPrices[q.id] !== undefined ? customPrices[q.id] : defaults.totalEstimate;
-    const finalDeposit = Math.round(finalPrice * (pricingConfig.depositPercentage / 100));
+  const openProposalPreview = (lead: QuoteRequest) => {
+    setSelectedLeadForProposal(lead);
+    setPrintedName(lead.full_name || '');
+    setIsSigned(false);
+    setShowProposalModal(true);
+  };
+
+  const handleCopyQuoteText = () => {
+    if (!selectedLeadForProposal) return;
+    const calc = computeLeadEstimate(selectedLeadForProposal.sqft, selectedLeadForProposal.bedrooms, selectedLeadForProposal.bathrooms, selectedLeadForProposal.service_type);
+    const price = customPrices[selectedLeadForProposal.id] !== undefined ? customPrices[selectedLeadForProposal.id] : calc.totalEstimate;
+    const deposit = Math.round(price * (pricingConfig.depositPercentage / 100));
+    const balance = price - deposit;
+
+    const text = `JJ CLEANING SERVICES LLC - OFFICIAL PROPOSAL\n` +
+      `Client: ${selectedLeadForProposal.full_name}\n` +
+      `Address: ${selectedLeadForProposal.address}\n` +
+      `Service: ${selectedLeadForProposal.service_type}\n` +
+      `Total Estimate: $${price}\n` +
+      `Required Deposit (${pricingConfig.depositPercentage}%): $${deposit}\n` +
+      `Remaining Balance: $${balance}`;
+
+    navigator.clipboard.writeText(text);
+    setCopyStatus('Copied!');
+    setTimeout(() => setCopyStatus(''), 3000);
+  };
+
+  const handleSendEmailProposal = () => {
+    if (!selectedLeadForProposal) return;
+    const calc = computeLeadEstimate(selectedLeadForProposal.sqft, selectedLeadForProposal.bedrooms, selectedLeadForProposal.bathrooms, selectedLeadForProposal.service_type);
+    const price = customPrices[selectedLeadForProposal.id] !== undefined ? customPrices[selectedLeadForProposal.id] : calc.totalEstimate;
+    const deposit = Math.round(price * (pricingConfig.depositPercentage / 100));
+    const balance = price - deposit;
 
     const subject = encodeURIComponent(`Official Cleaning Proposal - JJ Cleaning Services LLC`);
     const body = encodeURIComponent(
-      `Hello ${q.full_name || 'Valued Client'},\n\n` +
-      `Thank you for reaching out to JJ Cleaning Services LLC!\n\n` +
-      `SERVICE & PROPERTY DETAILS:\n` +
+      `Hello ${selectedLeadForProposal.full_name || 'Valued Client'},\n\n` +
+      `Thank you for requesting a proposal from JJ Cleaning Services LLC!\n\n` +
+      `PROPOSAL SUMMARY:\n` +
       `----------------------------------------\n` +
-      `Service Type: ${q.service_type || 'Cleaning Service'}\n` +
-      `Specs: ${q.sqft ? `${q.sqft} sq ft, ` : ''}${q.bedrooms || 0} Bedroom(s) / ${q.bathrooms || 0} Bathroom(s)\n` +
-      `Address: ${q.address || 'As specified'}\n` +
-      `Preferred Date: ${q.preferred_date || 'Flexible'}\n\n` +
-      `OFFICIAL QUOTE:\n` +
+      `Service Type: ${selectedLeadForProposal.service_type}\n` +
+      `Property Specs: ${selectedLeadForProposal.sqft ? `${selectedLeadForProposal.sqft} sq ft, ` : ''}${selectedLeadForProposal.bedrooms || 0} Bed / ${selectedLeadForProposal.bathrooms || 0} Bath\n` +
+      `Service Location: ${selectedLeadForProposal.address}\n\n` +
+      `PRICING & BALANCE BREAKDOWN:\n` +
       `----------------------------------------\n` +
-      `Total Cleaning Estimate: $${finalPrice}\n` +
-      `Required Deposit (${pricingConfig.depositPercentage}%): $${finalDeposit}\n\n` +
-      `To confirm your appointment date, please reply directly to this email or contact us by phone.\n\n` +
+      `Total Cleaning Price: $${price}\n` +
+      `Required Deposit (${pricingConfig.depositPercentage}%): $${deposit}\n` +
+      `Remaining Balance Due Upon Completion: $${balance}\n\n` +
+      `Signed By: ${printedName || 'Pending Client Signature'}\n\n` +
       `Best regards,\n` +
-      `Calvin Donaldson\n` +
       `JJ Cleaning Services LLC`
     );
 
-    window.location.href = `mailto:${q.email}?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:${selectedLeadForProposal.email}?subject=${subject}&body=${body}`;
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -253,7 +303,7 @@ export default function App() {
                   <Shield className="w-6 h-6" />
                 </div>
                 <h2 className="text-xl font-bold text-slate-900">Admin Authentication</h2>
-                <p className="text-xs text-slate-500">Enter your PIN to access backend settings and leads (Default: 1234)</p>
+                <p className="text-xs text-slate-500">Enter your 4-digit PIN to open Admin Mode (Default: {adminPin})</p>
                 {pinError && <p className="text-xs text-red-600 font-medium">{pinError}</p>}
                 <input
                   type="password"
@@ -318,6 +368,7 @@ export default function App() {
                         const calculated = computeLeadEstimate(q.sqft, q.bedrooms, q.bathrooms, q.service_type);
                         const currentPrice = customPrices[q.id] !== undefined ? customPrices[q.id] : calculated.totalEstimate;
                         const currentDeposit = Math.round(currentPrice * (pricingConfig.depositPercentage / 100));
+                        const currentBalance = currentPrice - currentDeposit;
 
                         return (
                           <div key={q.id} className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
@@ -370,43 +421,35 @@ export default function App() {
                               <div><strong className="text-slate-800">Specs:</strong> {q.sqft ? `${q.sqft} sq ft | ` : ''}{q.bedrooms} Bed / {q.bathrooms} Bath</div>
                             </div>
 
-                            {q.notes && (
-                              <div className="p-3 bg-white rounded-lg border border-slate-200 text-xs text-slate-700">
-                                <strong className="block text-slate-900 mb-0.5">Notes / Instructions:</strong>
-                                {q.notes}
+                            {/* Bolt-Style Balance Cards */}
+                            <div className="grid grid-cols-2 gap-3 p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl">
+                              <div>
+                                <span className="text-[11px] font-bold text-emerald-900 block">Required Deposit ({pricingConfig.depositPercentage}%)</span>
+                                <span className="text-base font-black text-emerald-700">${currentDeposit}</span>
                               </div>
-                            )}
+                              <div>
+                                <span className="text-[11px] font-bold text-emerald-900 block">Remaining Balance Due Upon Completion</span>
+                                <span className="text-base font-black text-emerald-700">${currentBalance}</span>
+                              </div>
+                            </div>
 
-                            {/* Quote Pricing & Proposal Dispatch Tool */}
-                            <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-3">
-                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                                <div>
-                                  <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider block">Admin Quote Calculator</span>
-                                  <span className="text-xs text-slate-500">Auto-calculated: ${calculated.totalEstimate} | Deposit: ${calculated.requiredDeposit}</span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-xs font-bold text-slate-700">$</span>
-                                    <input
-                                      type="number"
-                                      value={currentPrice}
-                                      onChange={(e) => handleCustomPriceChange(q.id, parseFloat(e.target.value) || 0)}
-                                      className="w-24 px-2 py-1 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                      title="Override Price"
-                                    />
-                                  </div>
-                                  <button
-                                    onClick={() => handleSendProposal(q)}
-                                    className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
-                                  >
-                                    <Send className="w-3.5 h-3.5" />
-                                    Send Proposal via Email
-                                  </button>
-                                </div>
+                            {/* Bolt Action Bar */}
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-slate-700">Quote Total: $</span>
+                                <input
+                                  type="number"
+                                  value={currentPrice}
+                                  onChange={(e) => handleCustomPriceChange(q.id, parseFloat(e.target.value) || 0)}
+                                  className="w-24 px-2 py-1 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                />
                               </div>
-                              <div className="text-[11px] text-emerald-800">
-                                <strong>Client Quote:</strong> Total ${currentPrice} — Deposit (${pricingConfig.depositPercentage}%): ${currentDeposit}
-                              </div>
+                              <button
+                                onClick={() => openProposalPreview(q)}
+                                className="w-full sm:w-auto px-4 py-2 border border-emerald-600 text-emerald-700 hover:bg-emerald-50 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
+                              >
+                                Preview Client Proposal
+                              </button>
                             </div>
                           </div>
                         );
@@ -414,8 +457,8 @@ export default function App() {
                     </div>
                   )
                 ) : (
-                  /* Admin Pricing Rules & Service Multipliers */
-                  <div className="space-y-6">
+                  /* Admin Pricing Rules & Bolt Security Tools */
+                  <div className="space-y-8">
                     <div>
                       <h3 className="text-lg font-bold text-slate-900">Configure Estimator Rules & Multipliers</h3>
                       <p className="text-xs text-slate-500">Set base rates, square footage pricing, room rates, and service multipliers.</p>
@@ -489,14 +532,41 @@ export default function App() {
                         />
                       </div>
                     </div>
+
+                    {/* Admin Security Settings Card (Bolt Card) */}
+                    <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Lock className="w-5 h-5 text-slate-700" />
+                        <div>
+                          <h4 className="text-sm font-bold text-slate-900">Admin Security</h4>
+                          <p className="text-xs text-slate-500">Change the 4-digit PIN required to open Admin Mode.</p>
+                        </div>
+                      </div>
+                      {pinSuccess && <p className="text-xs text-emerald-600 font-bold">{pinSuccess}</p>}
+                      <form onSubmit={handlePinChange} className="flex gap-2 max-w-sm">
+                        <input
+                          type="password"
+                          value={newPin}
+                          onChange={(e) => setNewPin(e.target.value)}
+                          placeholder="New 4-digit PIN"
+                          className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-mono"
+                        />
+                        <button
+                          type="submit"
+                          className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition"
+                        >
+                          Change Admin PIN
+                        </button>
+                      </form>
+                    </div>
                   </div>
                 )}
               </div>
             )}
           </div>
         ) : (
-          /* Client View - Clean Proposal Form */
-          <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-md border border-slate-200 max-w-2xl mx-auto">
+          /* Client View - Single Card Form */
+          <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-md border border-slate-200 max-w-2xl mx-auto space-y-6">
             {submitted ? (
               <div className="text-center py-10 space-y-4">
                 <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
@@ -504,7 +574,7 @@ export default function App() {
                 </div>
                 <h2 className="text-2xl font-bold text-slate-900">Request Received!</h2>
                 <p className="text-slate-600 max-w-md mx-auto">
-                  Thank you! We have logged your property details and will reach out shortly with your custom proposal.
+                  Thank you! We have logged your property details and will reach out shortly with your proposal.
                 </p>
                 <button
                   onClick={() => setSubmitted(false)}
@@ -535,7 +605,7 @@ export default function App() {
                       name="fullName"
                       value={formData.fullName}
                       onChange={handleChange}
-                      placeholder="Calvin Donaldson"
+                      placeholder="Heather test"
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
                     />
                   </div>
@@ -561,7 +631,7 @@ export default function App() {
                         name="phone"
                         value={formData.phone}
                         onChange={handleChange}
-                        placeholder="(555) 000-0000"
+                        placeholder="3016627885"
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
                       />
                     </div>
@@ -575,33 +645,33 @@ export default function App() {
                       name="address"
                       value={formData.address}
                       onChange={handleChange}
-                      placeholder="123 Street Name, City, State"
+                      placeholder="2623 college st"
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Service Type</label>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Service Type (optional)</label>
                       <select
                         name="serviceType"
                         value={formData.serviceType}
                         onChange={handleChange}
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
                       >
-                        <option value="Deep Clean">Deep Clean</option>
+                        <option value="Deep Cleaning">Deep Cleaning</option>
                         <option value="Standard Clean">Standard Clean</option>
                         <option value="Move In/Out">Move In/Out</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Property Sq Ft</label>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Property Sq Ft (optional)</label>
                       <input
                         type="number"
                         name="sqft"
                         value={formData.sqft}
                         onChange={handleChange}
-                        placeholder="e.g. 1500"
+                        placeholder="800"
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
                       />
                     </div>
@@ -633,7 +703,7 @@ export default function App() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Preferred Service Date</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Preferred Date (optional)</label>
                     <input
                       type="date"
                       name="preferredDate"
@@ -642,18 +712,6 @@ export default function App() {
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
                     />
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Notes / Special Instructions</label>
-                    <textarea
-                      name="notes"
-                      rows={3}
-                      value={formData.notes}
-                      onChange={handleChange}
-                      placeholder="Add any specific details..."
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
-                    ></textarea>
-                  </div>
                 </div>
 
                 <button
@@ -661,10 +719,84 @@ export default function App() {
                   type="submit"
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-600/25 transition duration-200 flex items-center justify-center gap-2"
                 >
+                  <Send className="w-4 h-4" />
                   {loading ? 'Saving Request...' : 'Submit Quote Request'}
                 </button>
               </form>
             )}
+          </div>
+        )}
+
+        {/* Client Proposal Modal (Full Bolt Proposal View with Digital Signature) */}
+        {showProposalModal && selectedLeadForProposal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+                <h3 className="text-xl font-bold text-slate-900">Client Proposal Preview</h3>
+                <button
+                  onClick={() => setShowProposalModal(false)}
+                  className="text-slate-400 hover:text-slate-600 font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Bolt Printed Name & Digital Signature Card */}
+              <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Printed Name</label>
+                  <input
+                    type="text"
+                    value={printedName}
+                    onChange={(e) => setPrintedName(e.target.value)}
+                    placeholder="Type your full name"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-medium"
+                  />
+                </div>
+                <div className="p-3 bg-white border border-slate-200 rounded-lg text-xs text-slate-500">
+                  <strong className="block text-slate-700">DATE & TIME SIGNED:</strong>
+                  Recorded automatically when you sign: {new Date().toLocaleString()}
+                </div>
+              </div>
+
+              {/* Bolt Share & Save Export Action Buttons */}
+              <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                <h4 className="text-sm font-bold text-slate-900">Share & Save</h4>
+                <p className="text-xs text-slate-500">Check the agreement and sign above to unlock these actions.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2">
+                  <button
+                    onClick={handleSendEmailProposal}
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Send Email Proposal
+                  </button>
+                  <button
+                    onClick={handleCopyQuoteText}
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-slate-100 text-slate-800 rounded-xl text-xs font-bold hover:bg-slate-200 transition"
+                  >
+                    <Copy className="w-4 h-4" />
+                    {copyStatus || 'Copy Quote Text'}
+                  </button>
+                  <button
+                    onClick={() => window.print()}
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-slate-100 text-slate-800 rounded-xl text-xs font-bold hover:bg-slate-200 transition"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Print / Save PDF
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  onClick={() => setShowProposalModal(false)}
+                  className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition"
+                >
+                  Close Preview
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
