@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, Shield, CheckCircle2, RefreshCw, Trash2, Phone, Mail, 
-  MapPin, Calendar, Settings, FileText 
+  MapPin, Calendar, Settings, FileText, Calculator, DollarSign 
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
@@ -28,7 +28,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pinError, setPinError] = useState('');
 
-  // Admin Pricing Rules
+  // Admin Configurable Pricing Settings
   const [pricingConfig, setPricingConfig] = useState({
     baseRate: 120,
     perSqFtRate: 0.10,
@@ -39,14 +39,14 @@ export default function App() {
     moveInOutMultiplier: 1.5,
   });
 
-  // Client Form State
+  // Client Form Input State
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
     address: '',
     serviceType: 'Deep Clean',
-    sqft: '',
+    sqft: '1500',
     bedrooms: '2',
     bathrooms: '2',
     preferredDate: '',
@@ -57,9 +57,30 @@ export default function App() {
   const [submitted, setSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Admin Leads State
+  // Admin Data State
   const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
+
+  // Background Quote & Deposit Calculation
+  const calculateQuoteDetails = () => {
+    const sqft = parseFloat(formData.sqft) || 0;
+    const beds = parseInt(formData.bedrooms) || 0;
+    const baths = parseInt(formData.bathrooms) || 0;
+
+    let base = pricingConfig.baseRate;
+    base += sqft * pricingConfig.perSqFtRate;
+    base += beds * pricingConfig.bedroomRate;
+    base += baths * pricingConfig.bathroomRate;
+
+    let multiplier = 1.0;
+    if (formData.serviceType === 'Deep Clean') multiplier = pricingConfig.deepCleanMultiplier;
+    if (formData.serviceType === 'Move In/Out') multiplier = pricingConfig.moveInOutMultiplier;
+
+    const totalEstimate = Math.round(base * multiplier);
+    const requiredDeposit = Math.round(totalEstimate * (pricingConfig.depositPercentage / 100));
+
+    return { totalEstimate, requiredDeposit };
+  };
 
   const fetchQuotes = async () => {
     setLoadingQuotes(true);
@@ -123,6 +144,13 @@ export default function App() {
     setLoading(true);
     setErrorMessage('');
 
+    // Automatically compute pricing estimates based on current Admin Rules
+    const { totalEstimate, requiredDeposit } = calculateQuoteDetails();
+
+    const noteDetails = formData.notes 
+      ? `[Est. Total: $${totalEstimate} | Deposit (${pricingConfig.depositPercentage}%): $${requiredDeposit}] — ${formData.notes}`
+      : `[Est. Total: $${totalEstimate} | Deposit (${pricingConfig.depositPercentage}%): $${requiredDeposit}]`;
+
     const payload = {
       full_name: formData.fullName || null,
       email: formData.email || null,
@@ -133,7 +161,7 @@ export default function App() {
       bedrooms: formData.bedrooms ? String(formData.bedrooms) : null,
       bathrooms: formData.bathrooms ? String(formData.bathrooms) : null,
       preferred_date: formData.preferredDate || null,
-      notes: formData.notes || null,
+      notes: noteDetails,
       status: 'pending'
     };
 
@@ -153,7 +181,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 py-8 px-4 sm:px-6 lg:px-8 font-sans">
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Header & Branding */}
         <div className="flex flex-col sm:flex-row items-center justify-between bg-white p-6 rounded-2xl shadow-sm border border-slate-200 gap-4">
@@ -311,7 +339,7 @@ export default function App() {
 
                           {q.notes && (
                             <div className="p-3 bg-white rounded-lg border border-slate-200 text-xs text-slate-700">
-                              <strong className="block text-slate-900 mb-0.5">Notes / Special Instructions:</strong>
+                              <strong className="block text-slate-900 mb-0.5">Calculated Estimate & Notes:</strong>
                               {q.notes}
                             </div>
                           )}
@@ -324,7 +352,7 @@ export default function App() {
                   <div className="space-y-6">
                     <div>
                       <h3 className="text-lg font-bold text-slate-900">Configure Estimator Rules</h3>
-                      <p className="text-xs text-slate-500">Adjust baseline rates and deposit requirements for internal pricing reference.</p>
+                      <p className="text-xs text-slate-500">Adjust baseline rates and deposit requirements for automated lead pricing.</p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -381,8 +409,8 @@ export default function App() {
             )}
           </div>
         ) : (
-          /* Client View - Original Single-Card Clean Form */
-          <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-md border border-slate-200">
+          /* Client View - Single Card Form */
+          <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-md border border-slate-200 max-w-2xl mx-auto">
             {submitted ? (
               <div className="text-center py-10 space-y-4">
                 <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
@@ -390,7 +418,7 @@ export default function App() {
                 </div>
                 <h2 className="text-2xl font-bold text-slate-900">Request Received!</h2>
                 <p className="text-slate-600 max-w-md mx-auto">
-                  Thank you! We have logged your property details and will reach out shortly with your proposal.
+                  Thank you! We have logged your property details and will reach out shortly with your custom proposal.
                 </p>
                 <button
                   onClick={() => setSubmitted(false)}
