@@ -106,7 +106,6 @@ export default function App() {
   const [reviewCopyStatus, setReviewCopyStatus] = useState<{ [key: string]: string }>({});
 
   const autobooksUrl = "https://app.autobooks.co/pay/jjcleaningservice";
-  const appPortalUrl = "https://jj-cleaning-service.vercel.app";
 
   const getActiveDiscountNames = () => {
     const names = [];
@@ -170,6 +169,14 @@ export default function App() {
   };
 
   const calc = calculateProposal();
+
+  // Auto-detect view proposal parameter from URL link
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('view') === 'proposal') {
+      handlePreviewProposal();
+    }
+  }, []);
 
   const fetchQuotes = async () => {
     setLoadingQuotes(true);
@@ -278,6 +285,10 @@ export default function App() {
     setViewingProposal(true);
   };
 
+  const getDirectProposalUrl = () => {
+    return `${window.location.origin}?view=proposal`;
+  };
+
   const handleCopyQuoteText = () => {
     const text = `JJ CLEANING SERVICES LLC - OFFICIAL PROPOSAL\n` +
       `Client: ${clientInfo.name}\n` +
@@ -288,7 +299,7 @@ export default function App() {
       `Total Estimate: $${calc.totalEstimate}\n` +
       `Required Deposit (${rates.depositPercent}%): $${calc.depositRequired}\n` +
       `Remaining Balance: $${calc.remainingBalance}\n\n` +
-      `View & Sign Proposal Online: ${appPortalUrl}\n` +
+      `View & Sign Proposal Online: ${getDirectProposalUrl()}\n` +
       `Pay Deposit Online: ${autobooksUrl}`;
 
     navigator.clipboard.writeText(text);
@@ -308,12 +319,14 @@ export default function App() {
   const handleSendEmailProposal = () => {
     const recipient = encodeURIComponent(clientInfo.email || '');
     const subject = encodeURIComponent(`Official Cleaning Proposal - JJ Cleaning Services LLC`);
+    const proposalUrl = getDirectProposalUrl();
+
     const body = encodeURIComponent(
       `Hello ${clientInfo.name || 'Valued Client'},\n\n` +
       `Thank you for requesting a proposal from JJ Cleaning Services LLC!\n\n` +
       `Please click the link below to view your full interactive proposal, review terms, sign, and pay your deposit:\n\n` +
       `👉 VIEW & SIGN YOUR PROPOSAL ONLINE:\n` +
-      `${appPortalUrl}\n\n` +
+      `${proposalUrl}\n\n` +
       `----------------------------------------\n` +
       `PROPOSAL SUMMARY:\n` +
       `----------------------------------------\n` +
