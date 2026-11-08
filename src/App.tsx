@@ -1011,12 +1011,13 @@ export default function App() {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600">
-                            <div><strong>Email:</strong> {q.email}</div>
-                            <div><strong>Phone:</strong> {q.phone}</div>
-                            <div><strong>Address:</strong> {q.address}</div>
-                            <div><strong>Service:</strong> {q.service_type} ({q.sqft} sq ft, {q.bedrooms} Bed / {q.bathrooms} Bath)</div>
-                            {q.notes && <div className="col-span-2 text-emerald-800"><strong>Instructions/Comments:</strong> {q.notes}</div>}
+                          {/* CLEAN SINGLE-COLUMN MOBILE LEADS LAYOUT */}
+                          <div className="space-y-1 text-xs text-slate-600">
+                            <p><strong className="text-slate-800">Email:</strong> {q.email || 'N/A'}</p>
+                            <p><strong className="text-slate-800">Phone:</strong> {q.phone || 'N/A'}</p>
+                            <p><strong className="text-slate-800">Address:</strong> {q.address || 'N/A'}</p>
+                            <p><strong className="text-slate-800">Service:</strong> {q.service_type} ({q.sqft} sq ft, {q.bedrooms} Bed / {q.bathrooms} Bath)</p>
+                            {q.notes && <p className="text-emerald-800 pt-1"><strong className="text-emerald-900">Instructions:</strong> {q.notes}</p>}
                           </div>
 
                           {/* Exclusive Review Link Button for Completed Jobs */}
