@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, Shield, CheckCircle2, RefreshCw, Trash2, Phone, Mail, 
-  MapPin, Calendar, Settings, FileText, Send, Copy, Printer, Camera, Lock, Check, X, Tag
+  MapPin, Calendar, Settings, FileText, Send, Copy, Printer, Camera, Lock, Check, X, Tag, Star
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
@@ -98,6 +98,7 @@ export default function App() {
   const [loadingQuotes, setLoadingQuotes] = useState(false);
   const [loading, setLoading] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
+  const [reviewCopyStatus, setReviewCopyStatus] = useState<{ [key: string]: string }>({});
 
   // Helper to compile active discount labels
   const getActiveDiscountNames = () => {
@@ -220,6 +221,27 @@ export default function App() {
     }
   };
 
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
+    const { error } = await supabase
+      .from('quote_requests')
+      .update({ status: newStatus })
+      .eq('id', id);
+
+    if (!error) {
+      setQuotes(quotes.map(q => q.id === id ? { ...q, status: newStatus } : q));
+    } else {
+      alert(`Error updating status: ${error.message}`);
+    }
+  };
+
+  const handleDeleteLead = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this lead?')) return;
+    const { error } = await supabase.from('quote_requests').delete().eq('id', id);
+    if (!error) {
+      setQuotes(quotes.filter(q => q.id !== id));
+    }
+  };
+
   const handleConvertToProposal = (q: QuoteRequest) => {
     setClientInfo({
       name: q.full_name || '',
@@ -265,6 +287,15 @@ export default function App() {
     navigator.clipboard.writeText(text);
     setCopyStatus('Copied!');
     setTimeout(() => setCopyStatus(''), 3000);
+  };
+
+  const handleCopyReviewLink = (clientName: string, id: string) => {
+    const reviewText = `Hi ${clientName || 'Valued Client'}, thank you again for choosing JJ Cleaning Services LLC! We hope you love your freshly cleaned home. If you were happy with our service today, we would truly appreciate a quick Google review here: https://g.page/r/YOUR_GOOGLE_REVIEW_LINK (Replace with your actual link). Have a wonderful day!`;
+    navigator.clipboard.writeText(reviewText);
+    setReviewCopyStatus({ ...reviewCopyStatus, [id]: 'Review Link Copied!' });
+    setTimeout(() => {
+      setReviewCopyStatus(prev => ({ ...prev, [id]: '' }));
+    }, 3000);
   };
 
   const handleSendEmailProposal = () => {
@@ -414,7 +445,6 @@ export default function App() {
                 <span className="text-slate-600 block">{proposalData.client.address}</span>
                 <span className="text-slate-600 block">{proposalData.client.email} | {proposalData.client.phone}</span>
                 
-                {/* Customer Comments Display on Client Proposal */}
                 {proposalData.client.notes && (
                   <div className="mt-3 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900">
                     <strong className="block font-bold uppercase text-[10px] text-emerald-700 mb-0.5">Special Instructions / Notes:</strong>
@@ -642,7 +672,7 @@ export default function App() {
                       activeAdminTab === 'leads' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
-                    Pending Leads / Quote Requests ({quotes.length})
+                    Manage Leads / Jobs ({quotes.length})
                   </button>
                   <button
                     onClick={() => setActiveAdminTab('settings')}
@@ -899,43 +929,77 @@ export default function App() {
                   </div>
                 )}
 
-                {/* PENDING LEADS TAB */}
+                {/* MANAGE LEADS / JOBS TAB */}
                 {activeAdminTab === 'leads' && (
                   loadingQuotes ? (
-                    <p className="text-center py-8 text-slate-500 text-sm">Loading database leads...</p>
+                    <p className="text-center py-8 text-slate-500 text-sm">Loading database records...</p>
                   ) : quotes.length === 0 ? (
                     <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                      <p className="text-slate-500 text-sm">No quote requests found.</p>
+                      <p className="text-slate-500 text-sm">No leads or jobs found in database.</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {quotes.map((q) => (
                         <div key={q.id} className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-                          <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 pb-3 gap-2">
                             <div>
-                              <span className="font-bold text-slate-900">{q.full_name || 'Anonymous Lead'}</span>
+                              <span className="font-bold text-slate-900 text-sm">{q.full_name || 'Anonymous Lead'}</span>
                               <span className="text-xs text-slate-400 block">{new Date(q.created_at).toLocaleString()}</span>
                             </div>
                             <div className="flex items-center gap-2">
+                              {/* Job Status Dropdown */}
+                              <select
+                                value={q.status || 'pending'}
+                                onChange={(e) => handleUpdateStatus(q.id, e.target.value)}
+                                className={`text-xs font-bold px-3 py-1.5 rounded-lg border ${
+                                  q.status === 'completed' 
+                                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
+                                    : q.status === 'proposal_sent' 
+                                    ? 'bg-blue-100 text-blue-800 border-blue-300' 
+                                    : 'bg-amber-100 text-amber-800 border-amber-300'
+                                }`}
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="proposal_sent">Proposal Sent</option>
+                                <option value="completed">Completed</option>
+                              </select>
+
                               <button
                                 onClick={() => handleConvertToProposal(q)}
-                                className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition flex items-center gap-1.5"
+                                className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition flex items-center gap-1"
                               >
-                                <FileText className="w-3.5 h-3.5" />
-                                Convert to Proposal
+                                <FileText className="w-3.5 h-3.5" /> Load in Builder
                               </button>
-                              <button onClick={() => handleDelete(q.id)} className="text-slate-400 hover:text-red-600 p-1">
+                              <button onClick={() => handleDeleteLead(q.id)} className="text-slate-400 hover:text-red-600 p-1">
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </div>
-                          <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600">
                             <div><strong>Email:</strong> {q.email}</div>
                             <div><strong>Phone:</strong> {q.phone}</div>
                             <div><strong>Address:</strong> {q.address}</div>
                             <div><strong>Service:</strong> {q.service_type} ({q.sqft} sq ft, {q.bedrooms} Bed / {q.bathrooms} Bath)</div>
                             {q.notes && <div className="col-span-2 text-emerald-800"><strong>Instructions/Comments:</strong> {q.notes}</div>}
                           </div>
+
+                          {/* Exclusive Review Link Button for Completed Jobs */}
+                          {q.status === 'completed' && (
+                            <div className="pt-3 border-t border-emerald-200 bg-emerald-50/50 p-3 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 text-xs text-emerald-900 font-semibold">
+                                <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                                <span>Job Completed! Ready to request review from happy client.</span>
+                              </div>
+                              <button
+                                onClick={() => handleCopyReviewLink(q.full_name, q.id)}
+                                className="w-full sm:w-auto px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1.5"
+                              >
+                                <Star className="w-4 h-4" />
+                                {reviewCopyStatus[q.id] || 'Copy Google Review Link'}
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
