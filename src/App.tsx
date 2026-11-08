@@ -22,17 +22,15 @@ interface QuoteRequest {
 }
 
 export default function App() {
-  const [isAdmin, setIsAdmin] = useState(false); // Defaults to Client Form View for visitors
+  const [isAdmin, setIsAdmin] = useState(false);
   const [activeAdminTab, setActiveAdminTab] = useState<'builder' | 'leads' | 'settings'>('builder');
   const [pinInput, setPinInput] = useState('');
   
-  // Persistent PIN: Checks browser storage first, falls back to '5678'
-  const [adminPin, setAdminPin] = useState(() => {
-    return localStorage.getItem('jj_admin_pin') || '5678';
-  });
+  // CHANGE YOUR PIN HERE ON LINE 26:
+  const [adminPin, setAdminPin] = useState('5678');
   
   const [newPin, setNewPin] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // Admin dashboard starts locked
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pinError, setPinError] = useState('');
 
   // Proposal Builder State
@@ -1115,9 +1113,8 @@ export default function App() {
                           onClick={() => {
                             if (newPin.trim()) {
                               setAdminPin(newPin);
-                              localStorage.setItem('jj_admin_pin', newPin);
                               setNewPin('');
-                              alert('PIN updated and saved to this browser!');
+                              alert('PIN updated!');
                             }
                           }}
                           className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold"
