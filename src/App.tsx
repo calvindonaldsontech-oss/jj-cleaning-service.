@@ -255,6 +255,7 @@ export default function App() {
       `Client: ${clientInfo.name}\n` +
       `Address: ${clientInfo.address}\n` +
       `Service: ${jobDetails.serviceType}\n` +
+      (clientInfo.notes ? `Customer Instructions: ${clientInfo.notes}\n` : '') +
       (calc.discountAmount > 0 ? `Discount Applied: ${calc.discountNames} (-$${calc.baseDiscountAmount.toFixed(2)})\n` : '') +
       `Total Estimate: $${calc.totalEstimate}\n` +
       `Required Deposit (${rates.depositPercent}%): $${calc.depositRequired}\n` +
@@ -276,6 +277,7 @@ export default function App() {
       `Service Type: ${jobDetails.serviceType}\n` +
       `Property Specs: ${jobDetails.sqft} sq ft, ${jobDetails.bedrooms} Bed / ${jobDetails.bathrooms} Bath\n` +
       `Service Location: ${clientInfo.address}\n` +
+      (clientInfo.notes ? `Customer Instructions: ${clientInfo.notes}\n\n` : '\n') +
       (calc.discountAmount > 0 ? `Discount Applied: ${calc.discountNames} (-$${calc.baseDiscountAmount.toFixed(2)})\n\n` : '\n') +
       `PRICING & BALANCE BREAKDOWN:\n` +
       `----------------------------------------\n` +
@@ -411,10 +413,13 @@ export default function App() {
                 <span className="text-sm font-bold text-slate-900 block">{proposalData.client.name}</span>
                 <span className="text-slate-600 block">{proposalData.client.address}</span>
                 <span className="text-slate-600 block">{proposalData.client.email} | {proposalData.client.phone}</span>
+                
+                {/* Customer Comments Display on Client Proposal */}
                 {proposalData.client.notes && (
-                  <span className="text-emerald-800 font-medium block pt-1">
-                    <strong>Instructions:</strong> {proposalData.client.notes}
-                  </span>
+                  <div className="mt-3 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900">
+                    <strong className="block font-bold uppercase text-[10px] text-emerald-700 mb-0.5">Special Instructions / Notes:</strong>
+                    <span>{proposalData.client.notes}</span>
+                  </div>
                 )}
               </div>
               <div className="text-right">
@@ -424,7 +429,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Services & Clean Breakdown (Itemized formula hidden for cleaner client view) */}
+            {/* Services & Clean Breakdown */}
             <div className="space-y-3">
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Services & Pricing</h3>
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
