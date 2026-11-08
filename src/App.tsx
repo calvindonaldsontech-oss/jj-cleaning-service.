@@ -22,10 +22,15 @@ interface QuoteRequest {
 }
 
 export default function App() {
-  const [isAdmin, setIsAdmin] = useState(false); // Defaults to client view for shared link visitors
+  const [isAdmin, setIsAdmin] = useState(false); // Defaults to Client Form View for visitors
   const [activeAdminTab, setActiveAdminTab] = useState<'builder' | 'leads' | 'settings'>('builder');
   const [pinInput, setPinInput] = useState('');
-  const [adminPin, setAdminPin] = useState('5678');
+  
+  // Persistent PIN: Checks browser storage first, falls back to '5678'
+  const [adminPin, setAdminPin] = useState(() => {
+    return localStorage.getItem('jj_admin_pin') || '5678';
+  });
+  
   const [newPin, setNewPin] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Admin dashboard starts locked
   const [pinError, setPinError] = useState('');
@@ -1107,7 +1112,14 @@ export default function App() {
                           className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-mono"
                         />
                         <button
-                          onClick={() => { setAdminPin(newPin); setNewPin(''); alert('PIN updated!'); }}
+                          onClick={() => {
+                            if (newPin.trim()) {
+                              setAdminPin(newPin);
+                              localStorage.setItem('jj_admin_pin', newPin);
+                              setNewPin('');
+                              alert('PIN updated and saved to this browser!');
+                            }
+                          }}
                           className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold"
                         >
                           Change PIN
