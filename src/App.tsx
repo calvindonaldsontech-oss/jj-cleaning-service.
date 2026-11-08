@@ -25,7 +25,7 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(true);
   const [activeAdminTab, setActiveAdminTab] = useState<'builder' | 'leads' | 'settings'>('builder');
   const [pinInput, setPinInput] = useState('');
-  const [adminPin, setAdminPin] = useState('1234');
+  const [adminPin, setAdminPin] = useState('5678'); // Updated PIN
   const [newPin, setNewPin] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [pinError, setPinError] = useState('');
@@ -872,7 +872,7 @@ export default function App() {
                     {/* Estimate Summary */}
                     <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
                       <div className="text-xs text-slate-600 space-y-1.5 border-b border-slate-200 pb-3">
-                        <div className="flex justify-between"><span>Base service fee</span><span>${calc.baseServiceFee.toFixed(2)}</span></div>
+                        <div className="flex justify-between"><span>Base service fee</span><span>${rates.baseFee.toFixed(2)}</span></div>
                         <div className="flex justify-between"><span>{jobDetails.bedrooms} bedrooms × ${rates.bedroomRate}</span><span>${(jobDetails.bedrooms * rates.bedroomRate).toFixed(2)}</span></div>
                         <div className="flex justify-between"><span>{jobDetails.bathrooms} bathrooms × ${rates.bathroomRate}</span><span>${(jobDetails.bathrooms * rates.bathroomRate).toFixed(2)}</span></div>
                         <div className="flex justify-between"><span>{jobDetails.sqft} sq ft × ${calc.sqFtRate}</span><span>${calc.sqFtTotal.toFixed(2)}</span></div>
