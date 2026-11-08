@@ -25,9 +25,9 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(true);
   const [activeAdminTab, setActiveAdminTab] = useState<'builder' | 'leads' | 'settings'>('builder');
   const [pinInput, setPinInput] = useState('');
-  const [adminPin, setAdminPin] = useState('5678'); // Updated PIN
+  const [adminPin, setAdminPin] = useState('5678');
   const [newPin, setNewPin] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false); // Fixed: starts locked so PIN is required
   const [pinError, setPinError] = useState('');
 
   // Proposal Builder State
