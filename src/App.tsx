@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, Shield, CheckCircle2, RefreshCw, Trash2, Phone, Mail, 
-  MapPin, Calendar, DollarSign, Settings, Calculator, FileText 
+  MapPin, Calendar, Settings, FileText 
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
@@ -28,7 +28,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pinError, setPinError] = useState('');
 
-  // Pricing Configuration State (Admin Adjustable)
+  // Admin Pricing Rules
   const [pricingConfig, setPricingConfig] = useState({
     baseRate: 120,
     perSqFtRate: 0.10,
@@ -46,7 +46,7 @@ export default function App() {
     phone: '',
     address: '',
     serviceType: 'Deep Clean',
-    sqft: '1500',
+    sqft: '',
     bedrooms: '2',
     bathrooms: '2',
     preferredDate: '',
@@ -60,29 +60,6 @@ export default function App() {
   // Admin Leads State
   const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
-
-  // Dynamic Quote Calculation
-  const calculateQuote = () => {
-    const sqft = parseFloat(formData.sqft) || 0;
-    const beds = parseInt(formData.bedrooms) || 0;
-    const baths = parseInt(formData.bathrooms) || 0;
-
-    let base = pricingConfig.baseRate;
-    base += sqft * pricingConfig.perSqFtRate;
-    base += beds * pricingConfig.bedroomRate;
-    base += baths * pricingConfig.bathroomRate;
-
-    let multiplier = 1.0;
-    if (formData.serviceType === 'Deep Clean') multiplier = pricingConfig.deepCleanMultiplier;
-    if (formData.serviceType === 'Move In/Out') multiplier = pricingConfig.moveInOutMultiplier;
-
-    const totalEstimate = Math.round(base * multiplier);
-    const requiredDeposit = Math.round(totalEstimate * (pricingConfig.depositPercentage / 100));
-
-    return { totalEstimate, requiredDeposit };
-  };
-
-  const { totalEstimate, requiredDeposit } = calculateQuote();
 
   const fetchQuotes = async () => {
     setLoadingQuotes(true);
@@ -156,7 +133,7 @@ export default function App() {
       bedrooms: formData.bedrooms ? String(formData.bedrooms) : null,
       bathrooms: formData.bathrooms ? String(formData.bathrooms) : null,
       preferred_date: formData.preferredDate || null,
-      notes: formData.notes ? `[Est: $${totalEstimate} | Deposit: $${requiredDeposit}] - ${formData.notes}` : `[Est: $${totalEstimate} | Deposit: $${requiredDeposit}]`,
+      notes: formData.notes || null,
       status: 'pending'
     };
 
@@ -176,7 +153,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 py-8 px-4 sm:px-6 lg:px-8 font-sans">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-2xl mx-auto space-y-6">
         
         {/* Header & Branding */}
         <div className="flex flex-col sm:flex-row items-center justify-between bg-white p-6 rounded-2xl shadow-sm border border-slate-200 gap-4">
@@ -311,7 +288,7 @@ export default function App() {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs text-slate-600">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-600">
                             <div className="flex items-center gap-2">
                               <Mail className="w-4 h-4 text-slate-400" />
                               <a href={`mailto:${q.email}`} className="hover:underline font-medium text-slate-800">{q.email || 'N/A'}</a>
@@ -334,7 +311,7 @@ export default function App() {
 
                           {q.notes && (
                             <div className="p-3 bg-white rounded-lg border border-slate-200 text-xs text-slate-700">
-                              <strong className="block text-slate-900 mb-0.5">Notes & Calculation Log:</strong>
+                              <strong className="block text-slate-900 mb-0.5">Notes / Special Instructions:</strong>
                               {q.notes}
                             </div>
                           )}
@@ -347,7 +324,7 @@ export default function App() {
                   <div className="space-y-6">
                     <div>
                       <h3 className="text-lg font-bold text-slate-900">Configure Estimator Rules</h3>
-                      <p className="text-xs text-slate-500">Adjust baseline rates and deposit requirements for client quote calculations.</p>
+                      <p className="text-xs text-slate-500">Adjust baseline rates and deposit requirements for internal pricing reference.</p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -404,204 +381,176 @@ export default function App() {
             )}
           </div>
         ) : (
-          /* Client View with Live Pricing Card */
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-white p-6 sm:p-8 rounded-2xl shadow-md border border-slate-200">
-              {submitted ? (
-                <div className="text-center py-10 space-y-4">
-                  <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-                    <CheckCircle2 className="w-10 h-10" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-slate-900">Request Received!</h2>
-                  <p className="text-slate-600 max-w-md mx-auto">
-                    Thank you! We have logged your property details and custom estimate.
-                  </p>
-                  <button
-                    onClick={() => setSubmitted(false)}
-                    className="mt-4 px-6 py-2.5 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 transition"
-                  >
-                    Submit Another Quote
-                  </button>
+          /* Client View - Original Single-Card Clean Form */
+          <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-md border border-slate-200">
+            {submitted ? (
+              <div className="text-center py-10 space-y-4">
+                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-10 h-10" />
                 </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-900">Request a Quote</h2>
-                    <p className="text-sm text-slate-500">Tell us about your property and we will prepare a custom proposal.</p>
-                  </div>
-
-                  {errorMessage && (
-                    <div className="p-4 text-sm bg-red-50 text-red-700 border border-red-200 rounded-xl">
-                      {errorMessage}
-                    </div>
-                  )}
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Full Name *</label>
-                      <input
-                        required
-                        type="text"
-                        name="fullName"
-                        value={formData.fullName}
-                        onChange={handleChange}
-                        placeholder="Calvin Donaldson"
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Email Address *</label>
-                        <input
-                          required
-                          type="email"
-                          name="email"
-                          value={formData.email}
-                          onChange={handleChange}
-                          placeholder="name@example.com"
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Phone Number *</label>
-                        <input
-                          required
-                          type="tel"
-                          name="phone"
-                          value={formData.phone}
-                          onChange={handleChange}
-                          placeholder="(555) 000-0000"
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Service Address *</label>
-                      <input
-                        required
-                        type="text"
-                        name="address"
-                        value={formData.address}
-                        onChange={handleChange}
-                        placeholder="123 Street Name, City, State"
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Service Type</label>
-                        <select
-                          name="serviceType"
-                          value={formData.serviceType}
-                          onChange={handleChange}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
-                        >
-                          <option value="Deep Clean">Deep Clean</option>
-                          <option value="Standard Clean">Standard Clean</option>
-                          <option value="Move In/Out">Move In/Out</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Property Sq Ft</label>
-                        <input
-                          type="number"
-                          name="sqft"
-                          value={formData.sqft}
-                          onChange={handleChange}
-                          placeholder="e.g. 1500"
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Bedrooms *</label>
-                        <input
-                          required
-                          type="number"
-                          name="bedrooms"
-                          value={formData.bedrooms}
-                          onChange={handleChange}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Bathrooms *</label>
-                        <input
-                          required
-                          type="number"
-                          name="bathrooms"
-                          value={formData.bathrooms}
-                          onChange={handleChange}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Preferred Service Date</label>
-                      <input
-                        type="date"
-                        name="preferredDate"
-                        value={formData.preferredDate}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Notes / Special Instructions</label>
-                      <textarea
-                        name="notes"
-                        rows={3}
-                        value={formData.notes}
-                        onChange={handleChange}
-                        placeholder="Add any specific details..."
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
-                      ></textarea>
-                    </div>
-                  </div>
-
-                  <button
-                    disabled={loading}
-                    type="submit"
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-600/25 transition duration-200 flex items-center justify-center gap-2"
-                  >
-                    {loading ? 'Saving Request...' : 'Submit Quote Request'}
-                  </button>
-                </form>
-              )}
-            </div>
-
-            {/* Live Pricing Breakdown Card */}
-            <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-md h-fit space-y-6">
-              <div className="flex items-center gap-2 text-emerald-400 border-b border-slate-800 pb-3">
-                <Calculator className="w-5 h-5" />
-                <h3 className="text-base font-bold text-white">Live Instant Estimate</h3>
+                <h2 className="text-2xl font-bold text-slate-900">Request Received!</h2>
+                <p className="text-slate-600 max-w-md mx-auto">
+                  Thank you! We have logged your property details and will reach out shortly with your proposal.
+                </p>
+                <button
+                  onClick={() => setSubmitted(false)}
+                  className="mt-4 px-6 py-2.5 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 transition"
+                >
+                  Submit Another Quote
+                </button>
               </div>
-
-              <div className="space-y-4">
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <span className="text-xs uppercase font-bold text-slate-400 tracking-wider">Estimated Total</span>
-                  <div className="text-3xl font-black text-emerald-400">${totalEstimate}</div>
+                  <h2 className="text-xl font-bold text-slate-900">Request a Quote</h2>
+                  <p className="text-sm text-slate-500">Tell us about your property and we will prepare a quote for JJ Cleaning Services LLC.</p>
                 </div>
 
-                <div className="pt-3 border-t border-slate-800">
-                  <span className="text-xs uppercase font-bold text-slate-400 tracking-wider">Estimated Deposit ({pricingConfig.depositPercentage}%)</span>
-                  <div className="text-xl font-bold text-white">${requiredDeposit}</div>
+                {errorMessage && (
+                  <div className="p-4 text-sm bg-red-50 text-red-700 border border-red-200 rounded-xl">
+                    {errorMessage}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Full Name *</label>
+                    <input
+                      required
+                      type="text"
+                      name="fullName"
+                      value={formData.fullName}
+                      onChange={handleChange}
+                      placeholder="Calvin Donaldson"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Email Address *</label>
+                      <input
+                        required
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        placeholder="name@example.com"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Phone Number *</label>
+                      <input
+                        required
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        placeholder="(555) 000-0000"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Service Address *</label>
+                    <input
+                      required
+                      type="text"
+                      name="address"
+                      value={formData.address}
+                      onChange={handleChange}
+                      placeholder="123 Street Name, City, State"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Service Type</label>
+                      <select
+                        name="serviceType"
+                        value={formData.serviceType}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                      >
+                        <option value="Deep Clean">Deep Clean</option>
+                        <option value="Standard Clean">Standard Clean</option>
+                        <option value="Move In/Out">Move In/Out</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Property Sq Ft</label>
+                      <input
+                        type="number"
+                        name="sqft"
+                        value={formData.sqft}
+                        onChange={handleChange}
+                        placeholder="e.g. 1500"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Bedrooms *</label>
+                      <input
+                        required
+                        type="number"
+                        name="bedrooms"
+                        value={formData.bedrooms}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Bathrooms *</label>
+                      <input
+                        required
+                        type="number"
+                        name="bathrooms"
+                        value={formData.bathrooms}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Preferred Service Date</label>
+                    <input
+                      type="date"
+                      name="preferredDate"
+                      value={formData.preferredDate}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Notes / Special Instructions</label>
+                    <textarea
+                      name="notes"
+                      rows={3}
+                      value={formData.notes}
+                      onChange={handleChange}
+                      placeholder="Add any specific details..."
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                    ></textarea>
+                  </div>
                 </div>
 
-                <div className="p-3 bg-slate-800/80 rounded-xl text-xs text-slate-300 space-y-1 border border-slate-700">
-                  <p><strong>Selected Service:</strong> {formData.serviceType}</p>
-                  <p><strong>Square Feet:</strong> {formData.sqft || 0} sq ft</p>
-                  <p><strong>Rooms:</strong> {formData.bedrooms} Bed / {formData.bathrooms} Bath</p>
-                </div>
-              </div>
-            </div>
+                <button
+                  disabled={loading}
+                  type="submit"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-600/25 transition duration-200 flex items-center justify-center gap-2"
+                >
+                  {loading ? 'Saving Request...' : 'Submit Quote Request'}
+                </button>
+              </form>
+            )}
           </div>
         )}
 
