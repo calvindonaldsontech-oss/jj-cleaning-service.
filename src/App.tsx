@@ -299,6 +299,7 @@ export default function App() {
       `Total Estimate: $${calc.totalEstimate}\n` +
       `Required Deposit (${rates.depositPercent}%): $${calc.depositRequired}\n` +
       `Remaining Balance: $${calc.remainingBalance}\n\n` +
+      `Note: Client provides all cleaning supplies and products.\n\n` +
       `View & Sign Proposal Online: ${getDirectProposalUrl()}\n` +
       `Pay Deposit Online: ${autobooksUrl}`;
 
@@ -340,6 +341,8 @@ export default function App() {
       `Total Cleaning Price: $${calc.totalEstimate}\n` +
       `Required Deposit (${rates.depositPercent}%): $${calc.depositRequired}\n` +
       `Remaining Balance Due Upon Completion: $${calc.remainingBalance}\n\n` +
+      `SUPPLY REQUIREMENT:\n` +
+      `Client agrees to provide all cleaning supplies, products, and equipment for the service.\n\n` +
       `PAY DEPOSIT ONLINE DIRECTLY:\n` +
       `${autobooksUrl}\n\n` +
       `Best regards,\n` +
@@ -541,7 +544,8 @@ export default function App() {
               <h4 className="font-bold text-slate-900 uppercase">Terms & Cancellation Policy</h4>
               <p>1. A 50% retainer deposit is required to reserve your service date. This deposit is non-refundable once work has been scheduled.</p>
               <p>2. The remaining balance is due upon completion of the job.</p>
-              <p>3. Cancellations made at least 48 hours before scheduled service receive a full deposit refund.</p>
+              <p>3. Client provides all cleaning supplies, products, and equipment for the service.</p>
+              <p>4. Cancellations made at least 48 hours before scheduled service receive a full deposit refund.</p>
             </div>
 
             {/* Review & Accept Terms */}
@@ -555,7 +559,7 @@ export default function App() {
                     className="w-5 h-5 mt-0.5 rounded text-emerald-600 focus:ring-emerald-500"
                   />
                   <span className="text-xs font-semibold text-slate-800">
-                    I agree to the Terms & Cancellation Policy (50% non-refundable deposit, 48-hr cancellation window, liability & property access terms).
+                    I agree to the Terms & Policy (50% deposit, client provides cleaning supplies, 48-hr cancellation window, liability & property access terms).
                   </span>
                 </label>
                 <button
@@ -631,10 +635,10 @@ export default function App() {
                   <div className="space-y-3 text-xs text-slate-700 leading-relaxed">
                     <div><strong className="block text-slate-900">1. Retainer & Deposit Terms</strong>A 50% retainer deposit of the total estimated cost is required to reserve your service date. This deposit is non-refundable once the booking has been confirmed.</div>
                     <div><strong className="block text-slate-900">2. 48-Hour Cancellation Fee</strong>Cancellations made at least 48 hours prior to the scheduled service time will receive a full refund of the deposit.</div>
-                    <div><strong className="block text-slate-900">3. Client-Supplied Product Liability</strong>If the client provides cleaning products, JJ Cleaning Services LLC is not liable for any damage.</div>
+                    <div><strong className="block text-slate-900">3. Client-Supplied Products & Equipment</strong>Client must provide all cleaning supplies, products, and equipment required for the service. JJ Cleaning Services LLC is not liable for any surface damage resulting from client-provided materials.</div>
                     <div><strong className="block text-slate-900">4. Equipment Disclaimer</strong>Company is not responsible for pre-existing damage to surfaces or fixtures.</div>
                     <div><strong className="block text-slate-900">5. Biohazard Exclusion</strong>Company does not clean biohazard materials or infectious waste.</div>
-                    <div><strong className="block text-slate-900">6. Property Access Terms</strong>Client must provide safe access to the property.</div>
+                    <div><strong className="block text-slate-900">6. Property Access Terms</strong>Client must provide safe access to the property and working utilities (running water and electricity).</div>
                     <div><strong className="block text-slate-900">7. Liability Waivers</strong>Total liability is limited to the cost of the specific service rendered.</div>
                     <div><strong className="block text-slate-900">8. Estimate Validity & Changes</strong>Estimates are valid for 30 days from the quote date.</div>
                   </div>
