@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, Shield, CheckCircle2, RefreshCw, Trash2, Phone, Mail, 
-  MapPin, Calendar, Settings, FileText, Send, Copy, Printer, Camera, Lock, Check, X, Tag, Star
+  MapPin, Calendar, Settings, FileText, Send, Copy, Printer, Camera, Lock, Check, X, Tag, Star, ExternalLink
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
@@ -26,7 +26,7 @@ export default function App() {
   const [activeAdminTab, setActiveAdminTab] = useState<'builder' | 'leads' | 'settings'>('builder');
   const [pinInput, setPinInput] = useState('');
   
-  // PIN saved securely in browser storage
+  // PIN stored in browser memory
   const [adminPin, setAdminPin] = useState(() => {
     return localStorage.getItem('jj_admin_pin') || '5678';
   });
@@ -104,6 +104,8 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
   const [reviewCopyStatus, setReviewCopyStatus] = useState<{ [key: string]: string }>({});
+
+  const autobooksUrl = "https://app.autobooks.co/pay/jjcleaningservice?utm_medium=qr&utm_source=printed-pf-qr&utm_campaign=activation";
 
   const getActiveDiscountNames = () => {
     const names = [];
@@ -285,7 +287,7 @@ export default function App() {
       `Total Estimate: $${calc.totalEstimate}\n` +
       `Required Deposit (${rates.depositPercent}%): $${calc.depositRequired}\n` +
       `Remaining Balance: $${calc.remainingBalance}\n` +
-      `Zelle: jjcleaningservice3@gmail.com`;
+      `Pay Online: ${autobooksUrl}`;
 
     navigator.clipboard.writeText(text);
     setCopyStatus('Copied!');
@@ -318,7 +320,7 @@ export default function App() {
       `Total Cleaning Price: $${calc.totalEstimate}\n` +
       `Required Deposit (${rates.depositPercent}%): $${calc.depositRequired}\n` +
       `Remaining Balance Due Upon Completion: $${calc.remainingBalance}\n\n` +
-      `Zelle Payment Info: jjcleaningservice3@gmail.com\n\n` +
+      `Pay Deposit Online: ${autobooksUrl}\n\n` +
       `Best regards,\n` +
       `JJ Cleaning Services LLC`
     );
@@ -483,8 +485,8 @@ export default function App() {
               </div>
             </div>
 
-            {/* Deposit & Payment Box */}
-            <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-xl space-y-3">
+            {/* Deposit & Autobooks Bank Payment Box */}
+            <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-xl space-y-4">
               <h3 className="text-xs font-bold text-emerald-900 uppercase tracking-wider">Deposit Breakdown</h3>
               <div className="flex justify-between text-xs text-emerald-800">
                 <span>{rates.depositPercent}% Retainer Deposit Required</span>
@@ -494,12 +496,21 @@ export default function App() {
                 <span>Remaining Balance Due Upon Completion</span>
                 <span className="font-bold">${proposalData.calc.remainingBalance.toFixed(2)}</span>
               </div>
-              <div className="pt-3 border-t border-emerald-200 space-y-2">
-                <span className="text-xs font-bold text-emerald-900 block">PAY YOUR DEPOSIT VIA ZELLE</span>
-                <div className="p-3 bg-white border border-emerald-300 rounded-lg flex items-center justify-between text-xs">
-                  <span>Send ${proposalData.calc.depositRequired.toFixed(2)} to: <strong>jjcleaningservice3@gmail.com</strong></span>
-                  <button onClick={() => navigator.clipboard.writeText('jjcleaningservice3@gmail.com')} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-bold">Copy Zelle Info</button>
-                </div>
+
+              <div className="pt-3 border-t border-emerald-200 space-y-3">
+                <span className="text-xs font-bold text-emerald-900 block">PAY YOUR DEPOSIT ONLINE</span>
+                <p className="text-xs text-emerald-800">
+                  Click the button below to pay your ${proposalData.calc.depositRequired.toFixed(2)} deposit securely via Credit Card, Debit Card, or Direct Bank Transfer (ACH):
+                </p>
+                <a
+                  href={autobooksUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 transition"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Pay ${proposalData.calc.depositRequired.toFixed(2)} Deposit Online (Autobooks)
+                </a>
               </div>
             </div>
 
@@ -646,7 +657,7 @@ export default function App() {
               </form>
             ) : (
               <div className="space-y-6">
-                {/* Admin Sub-Tabs & Exit */}
+                {/* Admin Sub-Tabs */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 pb-3 gap-2">
                   <div className="flex gap-2 overflow-x-auto w-full sm:w-auto">
                     <button
