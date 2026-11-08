@@ -26,8 +26,10 @@ export default function App() {
   const [activeAdminTab, setActiveAdminTab] = useState<'builder' | 'leads' | 'settings'>('builder');
   const [pinInput, setPinInput] = useState('');
   
-  // CHANGE YOUR PIN HERE ON LINE 26:
-  const [adminPin, setAdminPin] = useState('5678');
+  // PIN saved securely in browser storage
+  const [adminPin, setAdminPin] = useState(() => {
+    return localStorage.getItem('jj_admin_pin') || '5678';
+  });
   
   const [newPin, setNewPin] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -363,11 +365,11 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 py-8 px-4 sm:px-6 lg:px-8 font-sans">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-100 py-8 px-4 sm:px-6 lg:px-8 font-sans flex flex-col justify-between">
+      <div className="max-w-4xl mx-auto space-y-6 w-full">
         
-        {/* Top Header */}
-        <div className="flex flex-col sm:flex-row items-center justify-between bg-white p-6 rounded-2xl shadow-sm border border-slate-200 gap-4">
+        {/* Top Header - Cleaned up with no admin toggle */}
+        <div className="flex items-center justify-between bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-600/30">
               <Sparkles className="w-8 h-8" />
@@ -376,25 +378,6 @@ export default function App() {
               <h1 className="text-2xl font-black text-slate-900 tracking-tight">JJ Cleaning Services LLC</h1>
               <p className="text-sm font-medium text-slate-500">Quick Quote & Deposit Estimator</p>
             </div>
-          </div>
-
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-            <button
-              onClick={() => { setIsAdmin(true); setViewingProposal(false); }}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                isAdmin && !viewingProposal ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              Admin Mode
-            </button>
-            <button
-              onClick={() => { setIsAdmin(false); setViewingProposal(false); }}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                !isAdmin && !viewingProposal ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              Client Form View
-            </button>
           </div>
         </div>
 
@@ -653,34 +636,49 @@ export default function App() {
                 <button type="submit" className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition">
                   Unlock Dashboard
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAdmin(false)}
+                  className="text-xs text-slate-500 hover:text-slate-800 underline block mx-auto pt-2"
+                >
+                  ← Back to Client Form
+                </button>
               </form>
             ) : (
               <div className="space-y-6">
-                {/* Admin Sub-Tabs */}
-                <div className="flex border-b border-slate-200 pb-3 gap-2 overflow-x-auto">
+                {/* Admin Sub-Tabs & Exit */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 pb-3 gap-2">
+                  <div className="flex gap-2 overflow-x-auto w-full sm:w-auto">
+                    <button
+                      onClick={() => setActiveAdminTab('builder')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                        activeAdminTab === 'builder' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Proposal Builder
+                    </button>
+                    <button
+                      onClick={() => setActiveAdminTab('leads')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                        activeAdminTab === 'leads' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Manage Leads / Jobs ({quotes.length})
+                    </button>
+                    <button
+                      onClick={() => setActiveAdminTab('settings')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                        activeAdminTab === 'settings' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Rate & Service Pricing Settings
+                    </button>
+                  </div>
                   <button
-                    onClick={() => setActiveAdminTab('builder')}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-                      activeAdminTab === 'builder' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
+                    onClick={() => { setIsAdmin(false); setIsAuthenticated(false); }}
+                    className="px-3 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 whitespace-nowrap"
                   >
-                    Proposal Builder
-                  </button>
-                  <button
-                    onClick={() => setActiveAdminTab('leads')}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-                      activeAdminTab === 'leads' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    Manage Leads / Jobs ({quotes.length})
-                  </button>
-                  <button
-                    onClick={() => setActiveAdminTab('settings')}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-                      activeAdminTab === 'settings' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    Rate & Service Pricing Settings
+                    Exit Admin Mode
                   </button>
                 </div>
 
@@ -1113,8 +1111,9 @@ export default function App() {
                           onClick={() => {
                             if (newPin.trim()) {
                               setAdminPin(newPin);
+                              localStorage.setItem('jj_admin_pin', newPin);
                               setNewPin('');
-                              alert('PIN updated!');
+                              alert('PIN updated and saved!');
                             }
                           }}
                           className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold"
@@ -1188,6 +1187,17 @@ export default function App() {
         )}
 
       </div>
+
+      {/* DISCREET FOOTER ADMIN LOGIN LINK */}
+      <footer className="text-center py-6 mt-8 border-t border-slate-200 text-xs text-slate-400">
+        <p>© 2026 JJ Cleaning Services LLC. All rights reserved.</p>
+        <button
+          onClick={() => setIsAdmin(true)}
+          className="mt-2 text-slate-300 hover:text-slate-600 transition text-[11px] underline"
+        >
+          Admin Login
+        </button>
+      </footer>
     </div>
   );
 }
