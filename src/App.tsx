@@ -106,6 +106,7 @@ export default function App() {
   const [reviewCopyStatus, setReviewCopyStatus] = useState<{ [key: string]: string }>({});
 
   const autobooksUrl = "https://app.autobooks.co/pay/jjcleaningservice";
+  const appPortalUrl = "https://jj-cleaning-service.vercel.app";
 
   const getActiveDiscountNames = () => {
     const names = [];
@@ -283,11 +284,12 @@ export default function App() {
       `Address: ${clientInfo.address}\n` +
       `Service: ${jobDetails.serviceType}\n` +
       (clientInfo.notes ? `Customer Instructions: ${clientInfo.notes}\n` : '') +
-      (calc.discountAmount > 0 ? `Discount Applied: ${calc.discountNames} (-$${calc.baseDiscountAmount.toFixed(2)})\n` : '') +
+      (calc.discountAmount > 0 ? `Discounts Applied: ${calc.discountNames} (-$${calc.baseDiscountAmount.toFixed(2)})\n` : '') +
       `Total Estimate: $${calc.totalEstimate}\n` +
       `Required Deposit (${rates.depositPercent}%): $${calc.depositRequired}\n` +
-      `Remaining Balance: $${calc.remainingBalance}\n` +
-      `Pay Online: ${autobooksUrl}`;
+      `Remaining Balance: $${calc.remainingBalance}\n\n` +
+      `View & Sign Proposal Online: ${appPortalUrl}\n` +
+      `Pay Deposit Online: ${autobooksUrl}`;
 
     navigator.clipboard.writeText(text);
     setCopyStatus('Copied!');
@@ -309,19 +311,23 @@ export default function App() {
     const body = encodeURIComponent(
       `Hello ${clientInfo.name || 'Valued Client'},\n\n` +
       `Thank you for requesting a proposal from JJ Cleaning Services LLC!\n\n` +
+      `Please click the link below to view your full interactive proposal, review terms, sign, and pay your deposit:\n\n` +
+      `👉 VIEW & SIGN YOUR PROPOSAL ONLINE:\n` +
+      `${appPortalUrl}\n\n` +
+      `----------------------------------------\n` +
       `PROPOSAL SUMMARY:\n` +
       `----------------------------------------\n` +
       `Service Type: ${jobDetails.serviceType}\n` +
       `Property Specs: ${jobDetails.sqft} sq ft, ${jobDetails.bedrooms} Bed / ${jobDetails.bathrooms} Bath\n` +
       `Service Location: ${clientInfo.address}\n` +
-      (clientInfo.notes ? `Customer Instructions: ${clientInfo.notes}\n\n` : '\n') +
-      (calc.discountAmount > 0 ? `Discount Applied: ${calc.discountNames} (-$${calc.baseDiscountAmount.toFixed(2)})\n\n` : '\n') +
+      (clientInfo.notes ? `Customer Instructions / Special Requests:\n${clientInfo.notes}\n\n` : '\n') +
+      (calc.discountAmount > 0 ? `Discounts Applied:\n${calc.discountNames} (-$${calc.baseDiscountAmount.toFixed(2)})\n\n` : '\n') +
       `PRICING & BALANCE BREAKDOWN:\n` +
       `----------------------------------------\n` +
       `Total Cleaning Price: $${calc.totalEstimate}\n` +
       `Required Deposit (${rates.depositPercent}%): $${calc.depositRequired}\n` +
       `Remaining Balance Due Upon Completion: $${calc.remainingBalance}\n\n` +
-      `Pay Deposit Online:\n` +
+      `PAY DEPOSIT ONLINE DIRECTLY:\n` +
       `${autobooksUrl}\n\n` +
       `Best regards,\n` +
       `JJ Cleaning Services LLC`
