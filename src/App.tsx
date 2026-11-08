@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, Shield, CheckCircle2, RefreshCw, Trash2, Phone, Mail, 
-  MapPin, Calendar, Settings, FileText, Send, Copy, Printer, Camera, Lock, Check, X
+  MapPin, Calendar, Settings, FileText, Send, Copy, Printer, Camera, Lock, Check, X, Tag
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
@@ -30,13 +30,13 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [pinError, setPinError] = useState('');
 
-  // Proposal Builder State
+  // Proposal Builder State (With Customer Comments)
   const [clientInfo, setClientInfo] = useState({
     name: 'Jay Jay test',
     email: 'jjcleaningservice3@gmail.com',
     phone: '3473018330',
     address: '2026 queen New York',
-    notes: 'Need asap'
+    notes: 'Need asap - please pay extra attention to kitchen area'
   });
 
   const [jobDetails, setJobDetails] = useState({
@@ -65,7 +65,7 @@ export default function App() {
 
   const [includeSalesTax, setIncludeSalesTax] = useState(true);
 
-  // Rate Configuration
+  // Fully Editable Admin Rate Configuration (Service Types & Add-Ons)
   const [rates, setRates] = useState({
     baseFee: 180,
     bedroomRate: 45,
@@ -122,6 +122,7 @@ export default function App() {
 
     const rawSubtotal = baseSubtotal + addonsTotal;
 
+    // Calculate Discount Percentage (Capped at 25%)
     let discountPercent = 0;
     if (discounts.firstTime) discountPercent += 0.10;
     if (discounts.referral) discountPercent += 0.10;
@@ -129,7 +130,10 @@ export default function App() {
     if (discounts.seasonal) discountPercent += 0.15;
     if (discountPercent > 0.25) discountPercent = 0.25;
 
+    // Discount specifically calculated against Base Service Subtotal so customers see exact savings
+    const baseDiscountAmount = baseSubtotal * discountPercent;
     const discountAmount = rawSubtotal * discountPercent;
+
     let subtotalAfterDiscount = rawSubtotal - discountAmount;
 
     if (jobDetails.customOverride && parseFloat(jobDetails.customOverride) > 0) {
@@ -143,7 +147,7 @@ export default function App() {
 
     return { 
       baseServiceFee, sqFtRate, sqFtTotal, roomTotal, baseSubtotal, 
-      addonsTotal, discountAmount, totalEstimate, depositRequired, remainingBalance, salesTax 
+      addonsTotal, discountPercent, baseDiscountAmount, discountAmount, totalEstimate, depositRequired, remainingBalance, salesTax 
     };
   };
 
@@ -189,7 +193,7 @@ export default function App() {
       sqft: String(jobDetails.sqft),
       bedrooms: String(jobDetails.bedrooms),
       bathrooms: String(jobDetails.bathrooms),
-      notes: `[Total Est: $${calc.totalEstimate} | Deposit: $${calc.depositRequired}] ${clientInfo.notes}`.trim(),
+      notes: clientInfo.notes || null,
       status: 'pending'
     };
 
@@ -240,6 +244,8 @@ export default function App() {
       `Client: ${clientInfo.name}\n` +
       `Address: ${clientInfo.address}\n` +
       `Service: ${jobDetails.serviceType}\n` +
+      `Base Cleaning Subtotal: $${calc.baseSubtotal.toFixed(2)}\n` +
+      (calc.discountAmount > 0 ? `Promotional Savings (${(calc.discountPercent * 100).toFixed(0)}% OFF Base Rate): -$${calc.baseDiscountAmount.toFixed(2)}\n` : '') +
       `Total Estimate: $${calc.totalEstimate}\n` +
       `Required Deposit (${rates.depositPercent}%): $${calc.depositRequired}\n` +
       `Remaining Balance: $${calc.remainingBalance}\n` +
@@ -259,9 +265,12 @@ export default function App() {
       `----------------------------------------\n` +
       `Service Type: ${jobDetails.serviceType}\n` +
       `Property Specs: ${jobDetails.sqft} sq ft, ${jobDetails.bedrooms} Bed / ${jobDetails.bathrooms} Bath\n` +
-      `Service Location: ${clientInfo.address}\n\n` +
-      `PRICING & BALANCE BREAKDOWN:\n` +
+      `Service Location: ${clientInfo.address}\n` +
+      (clientInfo.notes ? `Customer Instructions: ${clientInfo.notes}\n\n` : '\n') +
+      `PRICING & DISCOUNT BREAKDOWN:\n` +
       `----------------------------------------\n` +
+      `Base Cleaning Subtotal: $${calc.baseSubtotal.toFixed(2)}\n` +
+      (calc.discountAmount > 0 ? `Special Discount (${(calc.discountPercent * 100).toFixed(0)}% OFF): -$${calc.baseDiscountAmount.toFixed(2)}\n` : '') +
       `Total Cleaning Price: $${calc.totalEstimate}\n` +
       `Required Deposit (${rates.depositPercent}%): $${calc.depositRequired}\n` +
       `Remaining Balance Due Upon Completion: $${calc.remainingBalance}\n\n` +
@@ -316,7 +325,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-100 py-8 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="max-w-4xl mx-auto space-y-6">
         
-        {/* Header */}
+        {/* Top Header */}
         <div className="flex flex-col sm:flex-row items-center justify-between bg-white p-6 rounded-2xl shadow-sm border border-slate-200 gap-4">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-600/30">
@@ -348,7 +357,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* CLIENT PROPOSAL VIEW (Complete with 8-Clause Terms Modal, Zelle, Signature Pad & Share Actions) */}
+        {/* CLIENT PROPOSAL VIEW WITH ITEMIZED BASE DISCOUNT DISPLAY */}
         {viewingProposal && proposalData ? (
           <div className="bg-white p-6 sm:p-10 rounded-2xl shadow-md border border-slate-200 space-y-8 max-w-3xl mx-auto">
             <div className="flex items-center justify-between border-b border-slate-200 pb-4">
@@ -377,7 +386,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Proposal Card Header */}
+            {/* Proposal Header */}
             <div className="flex items-center gap-4 bg-slate-900 text-white p-6 rounded-2xl">
               <div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center">
                 <Sparkles className="w-6 h-6 text-white" />
@@ -394,6 +403,11 @@ export default function App() {
                 <span className="text-sm font-bold text-slate-900 block">{proposalData.client.name}</span>
                 <span className="text-slate-600 block">{proposalData.client.address}</span>
                 <span className="text-slate-600 block">{proposalData.client.email} | {proposalData.client.phone}</span>
+                {proposalData.client.notes && (
+                  <span className="text-emerald-800 font-medium block pt-1">
+                    <strong>Instructions:</strong> {proposalData.client.notes}
+                  </span>
+                )}
               </div>
               <div className="text-right">
                 <strong className="text-slate-400 uppercase block mb-1">Quote Date / Expires</strong>
@@ -402,9 +416,9 @@ export default function App() {
               </div>
             </div>
 
-            {/* Services Breakdown */}
+            {/* Services & Itemized Base Discount Breakdown */}
             <div className="space-y-3">
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Services</h3>
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Services & Base Rate Discount</h3>
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
                 <div className="flex justify-between font-bold text-slate-900 text-sm">
                   <span>{proposalData.job.serviceType}</span>
@@ -412,17 +426,32 @@ export default function App() {
                 </div>
                 <p className="text-slate-500">{proposalData.job.bedrooms} bed, {proposalData.job.bathrooms} bath, {proposalData.job.sqft} sq ft</p>
                 <div className="pt-2 border-t border-slate-200 space-y-1 text-slate-600">
-                  <div className="flex justify-between"><span>Base service fee</span><span>${proposalData.calc.baseServiceFee.toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span>Bedrooms & Bathrooms</span><span>${proposalData.calc.roomTotal.toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span>Square Footage Rate</span><span>${proposalData.calc.sqFtTotal.toFixed(2)}</span></div>
-                  {proposalData.calc.addonsTotal > 0 && <div className="flex justify-between"><span>Add-ons</span><span>${proposalData.calc.addonsTotal.toFixed(2)}</span></div>}
-                  {proposalData.calc.discountAmount > 0 && <div className="flex justify-between text-emerald-600 font-semibold"><span>Discounts</span><span>-${proposalData.calc.discountAmount.toFixed(2)}</span></div>}
+                  <div className="flex justify-between"><span>Base Cleaning Fee</span><span>${proposalData.calc.baseServiceFee.toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>Bedrooms & Bathrooms Subtotal</span><span>${proposalData.calc.roomTotal.toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>Square Footage Subtotal</span><span>${proposalData.calc.sqFtTotal.toFixed(2)}</span></div>
+                  <div className="flex justify-between font-bold text-slate-800 pt-1 border-t border-slate-200">
+                    <span>Base Service Subtotal</span>
+                    <span>${proposalData.calc.baseSubtotal.toFixed(2)}</span>
+                  </div>
+
+                  {/* Explicit Base Service Discount Display */}
+                  {proposalData.calc.discountAmount > 0 && (
+                    <div className="flex justify-between text-emerald-700 font-bold p-2 bg-emerald-50 rounded-lg border border-emerald-200 my-1">
+                      <span className="flex items-center gap-1">
+                        <Tag className="w-3.5 h-3.5 text-emerald-600" />
+                        Promotional Savings ({(proposalData.calc.discountPercent * 100).toFixed(0)}% OFF Base Service Subtotal)
+                      </span>
+                      <span>-${proposalData.calc.baseDiscountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+
+                  {proposalData.calc.addonsTotal > 0 && <div className="flex justify-between pt-1"><span>Add-on Services</span><span>${proposalData.calc.addonsTotal.toFixed(2)}</span></div>}
                   {proposalData.calc.salesTax > 0 && <div className="flex justify-between"><span>Sales Tax (8.25%)</span><span>${proposalData.calc.salesTax.toFixed(2)}</span></div>}
                 </div>
               </div>
             </div>
 
-            {/* Deposit Breakdown & Zelle Payment Box */}
+            {/* Deposit & Payment Box */}
             <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-xl space-y-3">
               <h3 className="text-xs font-bold text-emerald-900 uppercase tracking-wider">Deposit Breakdown</h3>
               <div className="flex justify-between text-xs text-emerald-800">
@@ -434,19 +463,23 @@ export default function App() {
                 <span className="font-bold">${proposalData.calc.remainingBalance.toFixed(2)}</span>
               </div>
               <div className="pt-3 border-t border-emerald-200 space-y-2">
-                <span className="text-xs font-bold text-emerald-900 block">PAY YOUR DEPOSIT</span>
+                <span className="text-xs font-bold text-emerald-900 block">PAY YOUR DEPOSIT VIA ZELLE</span>
                 <div className="p-3 bg-white border border-emerald-300 rounded-lg flex items-center justify-between text-xs">
-                  <span>Zelle: Send ${proposalData.calc.depositRequired.toFixed(2)} to <strong>jjcleaningservice3@gmail.com</strong></span>
+                  <span>Send ${proposalData.calc.depositRequired.toFixed(2)} to: <strong>jjcleaningservice3@gmail.com</strong></span>
                   <button onClick={() => navigator.clipboard.writeText('jjcleaningservice3@gmail.com')} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-bold">Copy Zelle Info</button>
-                </div>
-                <div className="p-3 bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-500 flex justify-between items-center opacity-75">
-                  <span>Credit/Debit Card (Visa) - Coming Soon</span>
-                  <span className="text-[10px]">Unavailable</span>
                 </div>
               </div>
             </div>
 
-            {/* Review & Accept Terms with Full 8-Clause Modal Trigger */}
+            {/* Terms & Cancellation Policy */}
+            <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-[11px] text-slate-600">
+              <h4 className="font-bold text-slate-900 uppercase">Terms & Cancellation Policy</h4>
+              <p>1. A 50% retainer deposit is required to reserve your service date. This deposit is non-refundable once work has been scheduled.</p>
+              <p>2. The remaining balance is due upon completion of the job.</p>
+              <p>3. Cancellations made at least 48 hours before scheduled service receive a full deposit refund.</p>
+            </div>
+
+            {/* Review & Accept Terms */}
             <div className="space-y-4 pt-4 border-t border-slate-200">
               <div className="flex items-center justify-between">
                 <label className="flex items-start gap-3 cursor-pointer">
@@ -531,45 +564,18 @@ export default function App() {
                   <p className="text-xs font-semibold text-slate-500">JJ Cleaning Services LLC - Complete 8-clause policy document</p>
                   
                   <div className="space-y-3 text-xs text-slate-700 leading-relaxed">
-                    <div>
-                      <strong className="block text-slate-900">1. Retainer & Deposit Terms</strong>
-                      A 50% retainer deposit of the total estimated cost is required to reserve your service date. This deposit is non-refundable once the booking has been confirmed and the crew has been scheduled. The remaining balance is due upon completion of the agreed-upon scope of work.
-                    </div>
-                    <div>
-                      <strong className="block text-slate-900">2. 48-Hour Cancellation Fee</strong>
-                      Cancellations made at least 48 hours prior to the scheduled service time will receive a full refund of the retainer deposit. Cancellations made within 48 hours of the scheduled service will result in forfeiture of the 50% deposit. Rescheduling within 48 hours is treated as a cancellation and subject to the same fee.
-                    </div>
-                    <div>
-                      <strong className="block text-slate-900">3. Client-Supplied Product Liability</strong>
-                      If the client provides cleaning products or equipment, JJ Cleaning Services LLC is not liable for any damage, discoloration, or adverse reaction caused by those products. The client assumes full responsibility for the suitability and safety of any supplied materials.
-                    </div>
-                    <div>
-                      <strong className="block text-slate-900">4. Equipment Disclaimer</strong>
-                      JJ Cleaning Services LLC provides standard professional cleaning equipment. The company is not responsible for pre-existing damage to surfaces, fixtures, or appliances. Clients must disclose any known issues with flooring, countertops, or fixtures before service begins.
-                    </div>
-                    <div>
-                      <strong className="block text-slate-900">5. Biohazard Exclusion</strong>
-                      JJ Cleaning Services LLC does not handle, remove, or clean biohazard materials including but not limited to feces, bodily fluids, bloodborne pathogens, sewage backup, or infectious waste. These situations require a certified biohazard remediation specialist. Discovery of such conditions during service may result in suspension of work without refund for the affected portion.
-                    </div>
-                    <div>
-                      <strong className="block text-slate-900">6. Property Access Terms</strong>
-                      The client is responsible for providing safe and unobstructed access to the property and all areas to be cleaned. JJ Cleaning Services LLC is not liable for theft, loss, or damage to personal property left in accessible areas. Pets must be secured prior to the crew's arrival.
-                    </div>
-                    <div>
-                      <strong className="block text-slate-900">7. Liability Waivers</strong>
-                      JJ Cleaning Services LLC, its employees, and contractors are not liable for indirect, incidental, or consequential damages arising from cleaning services. Total liability is limited to the cost of the specific service rendered. Clients waive the right to pursue claims beyond this limitation.
-                    </div>
-                    <div>
-                      <strong className="block text-slate-900">8. Estimate Validity & Changes</strong>
-                      Estimates are based on property details provided at the time of quoting and are valid for 30 days from the quote date. Final pricing may be adjusted if actual conditions differ from the described scope. Any changes will be communicated and agreed upon before work proceeds.
-                    </div>
+                    <div><strong className="block text-slate-900">1. Retainer & Deposit Terms</strong>A 50% retainer deposit of the total estimated cost is required to reserve your service date. This deposit is non-refundable once the booking has been confirmed.</div>
+                    <div><strong className="block text-slate-900">2. 48-Hour Cancellation Fee</strong>Cancellations made at least 48 hours prior to the scheduled service time will receive a full refund of the deposit.</div>
+                    <div><strong className="block text-slate-900">3. Client-Supplied Product Liability</strong>If the client provides cleaning products, JJ Cleaning Services LLC is not liable for any damage.</div>
+                    <div><strong className="block text-slate-900">4. Equipment Disclaimer</strong>Company is not responsible for pre-existing damage to surfaces or fixtures.</div>
+                    <div><strong className="block text-slate-900">5. Biohazard Exclusion</strong>Company does not clean biohazard materials or infectious waste.</div>
+                    <div><strong className="block text-slate-900">6. Property Access Terms</strong>Client must provide safe access to the property.</div>
+                    <div><strong className="block text-slate-900">7. Liability Waivers</strong>Total liability is limited to the cost of the specific service rendered.</div>
+                    <div><strong className="block text-slate-900">8. Estimate Validity & Changes</strong>Estimates are valid for 30 days from the quote date.</div>
                   </div>
 
                   <div className="pt-4 border-t border-slate-200 text-right">
-                    <button
-                      onClick={() => setShowFullTermsModal(false)}
-                      className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition"
-                    >
+                    <button onClick={() => setShowFullTermsModal(false)} className="px-5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl">
                       Close
                     </button>
                   </div>
@@ -601,7 +607,7 @@ export default function App() {
               </form>
             ) : (
               <div className="space-y-6">
-                {/* Admin Tabs */}
+                {/* Admin Sub-Tabs */}
                 <div className="flex border-b border-slate-200 pb-3 gap-2 overflow-x-auto">
                   <button
                     onClick={() => setActiveAdminTab('builder')}
@@ -625,7 +631,7 @@ export default function App() {
                       activeAdminTab === 'settings' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
-                    System & Email Settings
+                    Rate & Service Pricing Settings
                   </button>
                 </div>
 
@@ -670,6 +676,18 @@ export default function App() {
                           type="text"
                           value={clientInfo.address}
                           onChange={(e) => setClientInfo({ ...clientInfo, address: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
+                        />
+                      </div>
+                      
+                      {/* Customer Comments & Special Instructions */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Customer Comments / Special Instructions</label>
+                        <textarea
+                          rows={2}
+                          value={clientInfo.notes}
+                          onChange={(e) => setClientInfo({ ...clientInfo, notes: e.target.value })}
+                          placeholder="Access instructions, pets, preferred days, special requests..."
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
                         />
                       </div>
@@ -734,7 +752,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Pre-Job Photos */}
+                    {/* Pre-Job Photos Dropzone */}
                     <div className="space-y-2 pt-4 border-t border-slate-200">
                       <h3 className="text-base font-bold text-slate-900">Pre-Job Photos</h3>
                       <p className="text-xs text-slate-500">Document pre-existing conditions. On a phone, you can take new photos or pick from your gallery.</p>
@@ -810,8 +828,17 @@ export default function App() {
                         <div className="flex justify-between"><span>{jobDetails.bedrooms} bedrooms × ${rates.bedroomRate}</span><span>${(jobDetails.bedrooms * rates.bedroomRate).toFixed(2)}</span></div>
                         <div className="flex justify-between"><span>{jobDetails.bathrooms} bathrooms × ${rates.bathroomRate}</span><span>${(jobDetails.bathrooms * rates.bathroomRate).toFixed(2)}</span></div>
                         <div className="flex justify-between"><span>{jobDetails.sqft} sq ft × ${calc.sqFtRate}</span><span>${calc.sqFtTotal.toFixed(2)}</span></div>
-                        {calc.addonsTotal > 0 && <div className="flex justify-between"><span>Add-ons</span><span>${calc.addonsTotal.toFixed(2)}</span></div>}
-                        {calc.discountAmount > 0 && <div className="flex justify-between text-emerald-600 font-semibold"><span>Discounts</span><span>-${calc.discountAmount.toFixed(2)}</span></div>}
+                        <div className="flex justify-between font-bold text-slate-800 pt-1 border-t border-slate-200">
+                          <span>Base Subtotal</span>
+                          <span>${calc.baseSubtotal.toFixed(2)}</span>
+                        </div>
+                        {calc.discountAmount > 0 && (
+                          <div className="flex justify-between text-emerald-700 font-bold p-1.5 bg-emerald-100/60 rounded my-1">
+                            <span>Promotional Savings ({(calc.discountPercent * 100).toFixed(0)}% OFF Base Rate)</span>
+                            <span>-${calc.baseDiscountAmount.toFixed(2)}</span>
+                          </div>
+                        )}
+                        {calc.addonsTotal > 0 && <div className="flex justify-between"><span>Add-ons Subtotal</span><span>${calc.addonsTotal.toFixed(2)}</span></div>}
                         <div className="flex justify-between items-center pt-2 border-t border-slate-200">
                           <span>Sales Tax (8.25%)</span>
                           <input type="checkbox" checked={includeSalesTax} onChange={(e) => setIncludeSalesTax(e.target.checked)} className="w-4 h-4" />
@@ -889,6 +916,7 @@ export default function App() {
                             <div><strong>Phone:</strong> {q.phone}</div>
                             <div><strong>Address:</strong> {q.address}</div>
                             <div><strong>Service:</strong> {q.service_type} ({q.sqft} sq ft, {q.bedrooms} Bed / {q.bathrooms} Bath)</div>
+                            {q.notes && <div className="col-span-2 text-emerald-800"><strong>Instructions/Comments:</strong> {q.notes}</div>}
                           </div>
                         </div>
                       ))}
@@ -896,31 +924,146 @@ export default function App() {
                   )
                 )}
 
-                {/* SETTINGS TAB */}
+                {/* RATE & SERVICE PRICING SETTINGS TAB (PRICE ADJUSTABILITY) */}
                 {activeAdminTab === 'settings' && (
-                  <div className="space-y-6">
+                  <div className="space-y-8">
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900">Outbound Email Settings</h3>
-                      <p className="text-xs text-slate-500">Configure From Name, Reply-To, and Bounce Notification email for outbound estimates and notifications.</p>
+                      <h3 className="text-lg font-bold text-slate-900">Price Adjustability - Service Types ($/sq ft)</h3>
+                      <p className="text-xs text-slate-500">Adjust the per-square-foot rate for each service type.</p>
                     </div>
-                    <div className="space-y-4 max-w-xl">
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">From Name</label>
-                        <input type="text" defaultValue="JJ Cleaning Services LLC" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Move-In / Move-Out Rate ($/sq ft)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={rates.moveInOutSqFt}
+                          onChange={(e) => setRates({ ...rates, moveInOutSqFt: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
+                        />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Deep Cleaning Rate ($/sq ft)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={rates.deepSqFt}
+                          onChange={(e) => setRates({ ...rates, deepSqFt: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">General Recurring Rate ($/sq ft)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={rates.generalSqFt}
+                          onChange={(e) => setRates({ ...rates, generalSqFt: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Post-Construction Rate ($/sq ft)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={rates.postConstructionSqFt}
+                          onChange={(e) => setRates({ ...rates, postConstructionSqFt: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Post-Flood Sanitation Rate ($/sq ft)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={rates.postFloodSqFt}
+                          onChange={(e) => setRates({ ...rates, postFloodSqFt: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-200">
+                      <h3 className="text-lg font-bold text-slate-900 mb-1">Price Adjustability - Add-On Services ($)</h3>
+                      <p className="text-xs text-slate-500 mb-4">Set flat rate pricing for individual add-on options.</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1">Business Reply-To Email</label>
-                          <input type="email" defaultValue="jjcleaningservice3@gmail.com" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Inside Oven ($)</label>
+                          <input
+                            type="number"
+                            value={rates.addonOven}
+                            onChange={(e) => setRates({ ...rates, addonOven: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
+                          />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1">Bounce Notification Email</label>
-                          <input type="email" defaultValue="jjcleaningservice3@gmail.com" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Inside Refrigerator ($)</label>
+                          <input
+                            type="number"
+                            value={rates.addonFridge}
+                            onChange={(e) => setRates({ ...rates, addonFridge: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Interior Windows ($)</label>
+                          <input
+                            type="number"
+                            value={rates.addonWindows}
+                            onChange={(e) => setRates({ ...rates, addonWindows: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Inside Cabinets ($)</label>
+                          <input
+                            type="number"
+                            value={rates.addonCabinets}
+                            onChange={(e) => setRates({ ...rates, addonCabinets: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Baseboards Deep Wipe ($)</label>
+                          <input
+                            type="number"
+                            value={rates.addonBaseboards}
+                            onChange={(e) => setRates({ ...rates, addonBaseboards: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Heavy Stain / Flood Treatment ($)</label>
+                          <input
+                            type="number"
+                            value={rates.addonHeavyStain}
+                            onChange={(e) => setRates({ ...rates, addonHeavyStain: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold"
+                          />
                         </div>
                       </div>
-                      <button onClick={() => alert('Email settings saved!')} className="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold">
-                        Save Settings
-                      </button>
+                    </div>
+
+                    {/* Admin Security PIN Changer */}
+                    <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                      <h4 className="text-sm font-bold text-slate-900">Admin Security PIN</h4>
+                      <div className="flex gap-2 max-w-sm">
+                        <input
+                          type="password"
+                          value={newPin}
+                          onChange={(e) => setNewPin(e.target.value)}
+                          placeholder="New 4-digit PIN"
+                          className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-mono"
+                        />
+                        <button
+                          onClick={() => { setAdminPin(newPin); setNewPin(''); alert('PIN updated!'); }}
+                          className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold"
+                        >
+                          Change PIN
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -928,12 +1071,23 @@ export default function App() {
             )}
           </div>
         ) : (
-          /* CLIENT SUBMISSION FORM */
+          /* PUBLIC CLIENT SUBMISSION FORM (With Customer Instructions / Comments) */
           <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-md border border-slate-200 max-w-2xl mx-auto space-y-6">
             <form onSubmit={async (e) => {
               e.preventDefault();
               setLoading(true);
-              const payload = { ...clientInfo, status: 'pending' };
+              const payload = {
+                full_name: clientInfo.name || null,
+                email: clientInfo.email || null,
+                phone: clientInfo.phone || null,
+                address: clientInfo.address || null,
+                service_type: jobDetails.serviceType || null,
+                sqft: String(jobDetails.sqft),
+                bedrooms: String(jobDetails.bedrooms),
+                bathrooms: String(jobDetails.bathrooms),
+                notes: clientInfo.notes || null,
+                status: 'pending'
+              };
               const { error } = await supabase.from('quote_requests').insert([payload]);
               setLoading(false);
               if (!error) alert('Quote request submitted!');
@@ -957,6 +1111,19 @@ export default function App() {
                 <label className="block text-xs font-bold text-slate-700 mb-1">Service Address *</label>
                 <input required type="text" value={clientInfo.address} onChange={(e) => setClientInfo({ ...clientInfo, address: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl" />
               </div>
+
+              {/* Customer Comments Field on Public Form */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Customer Comments / Special Instructions</label>
+                <textarea
+                  rows={3}
+                  value={clientInfo.notes}
+                  onChange={(e) => setClientInfo({ ...clientInfo, notes: e.target.value })}
+                  placeholder="Access instructions, pets, preferred days, special requests..."
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
+
               <button type="submit" disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg">
                 {loading ? 'Submitting...' : 'Submit Quote Request'}
               </button>
