@@ -424,7 +424,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Services & Conditional Breakdown */}
+            {/* Services & Clean Breakdown (Itemized formula hidden for cleaner client view) */}
             <div className="space-y-3">
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Services & Pricing</h3>
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
@@ -443,15 +443,11 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="pt-2 border-t border-slate-200 space-y-1 text-slate-600">
-                    <div className="flex justify-between"><span>Base Cleaning Fee</span><span>${proposalData.calc.baseServiceFee.toFixed(2)}</span></div>
-                    <div className="flex justify-between"><span>Bedrooms & Bathrooms Subtotal</span><span>${proposalData.calc.roomTotal.toFixed(2)}</span></div>
-                    <div className="flex justify-between"><span>Square Footage Subtotal</span><span>${proposalData.calc.sqFtTotal.toFixed(2)}</span></div>
-                    <div className="flex justify-between font-bold text-slate-800 pt-1 border-t border-slate-200">
-                      <span>Base Service Subtotal</span>
+                    <div className="flex justify-between font-bold text-slate-800">
+                      <span>Base Cleaning Service Package</span>
                       <span>${proposalData.calc.baseSubtotal.toFixed(2)}</span>
                     </div>
 
-                    {/* Displays Specific Discount Name */}
                     {proposalData.calc.discountAmount > 0 && (
                       <div className="flex justify-between text-emerald-700 font-bold p-2 bg-emerald-50 rounded-lg border border-emerald-200 my-1">
                         <span className="flex items-center gap-1">
