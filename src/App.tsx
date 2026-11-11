@@ -1,119 +1,190 @@
 import React, { useState } from 'react';
 
-const N8N_WEBHOOK_URL = 'https://jj-cleaning-servive.app.n8n.cloud/webhook/jj-cleaning-quote';
-
 export default function App() {
+  // Step state: 'contact' or 'calculator'
+  const [step, setStep] = useState<'contact' | 'calculator'>('contact');
+
+  // Client info state
+  const [clientData, setClientData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: ''
+  });
+
+  // Property details state (no automated pricing shown)
   const [bedrooms, setBedrooms] = useState(2);
   const [bathrooms, setBathrooms] = useState(2);
   const [sqft, setSqft] = useState(1200);
-  const [customPriceOverride, setCustomPriceOverride] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  const formulaTotal = (bedrooms * 45) + (bathrooms * 35) + (sqft * 0.45) + 180;
-  const activeOverride = parseFloat(customPriceOverride);
-  const finalTotal = (!isNaN(activeOverride) && activeOverride > 0)
-    ? activeOverride
-    : formulaTotal;
-
-  const handleBookingSubmit = async (e: React.FormEvent) => {
+  const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    if (!clientData.name || !clientData.email || !clientData.phone || !clientData.address) {
+      alert('Please fill out all contact and address fields.');
+      return;
+    }
+    setStep('calculator');
+  };
 
+  const handleBookingSubmit = async () => {
+    setSubmitting(true);
     const payload = {
+      ...clientData,
       bedrooms,
       bathrooms,
-      sqft,
-      customPriceOverride,
-      finalTotal,
-      timestamp: new Date().toISOString(),
-      source: 'JJ Cleaning PWA',
+      sqft
     };
 
     try {
-      const response = await fetch(N8N_WEBHOOK_URL, {
+      // Replace with your active n8n webhook URL
+      const webhookUrl = 'YOUR_N8N_WEBHOOK_URL_HERE';
+      await fetch(webhookUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
-
-      if (response.ok) {
-        setSubmitted(true);
-      }
+      setSubmitted(true);
     } catch (error) {
-      console.error('Error submitting quote to n8n:', error);
+      console.error('Error sending lead:', error);
+      alert('Failed to submit booking. Please try again.');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  return (
-    <div style={{ maxWidth: '600px', margin: '40px auto', padding: '20px', fontFamily: 'sans-serif' }}>
-      <h2>JJ Cleaning Services - Instant Quote</h2>
-      
-      {submitted ? (
-        <div style={{ padding: '20px', backgroundColor: '#e6fffa', border: '1px solid #38b2ac', borderRadius: '8px' }}>
-          <h3>Quote Submitted Successfully!</h3>
-          <p>Thank you! Your quote details have been logged and our team will follow up shortly via SMS.</p>
-          <button onClick={() => setSubmitted(false)}>Submit Another Quote</button>
+  if (submitted) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0fdf4', padding: '20px', fontFamily: 'sans-serif' }}>
+        <div style={{ background: 'white', padding: '40px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', textAlign: 'center', maxWidth: '400px' }}>
+          <h2 style={{ color: '#16a34a', marginBottom: '10px' }}>Request Received!</h2>
+          <p style={{ color: '#4b5563' }}>Thank you, {clientData.name}. We have received your property details for {clientData.address} and JJ Cleaning Services will contact you shortly with your custom quote.</p>
         </div>
-      ) : (
-        <form onSubmit={handleBookingSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', padding: '20px', fontFamily: 'sans-serif', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <div style={{ background: 'white', width: '100%', maxWidth: '500px', padding: '30px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+        
+        <h2 style={{ color: '#1e293b', textAlign: 'center', marginBottom: '5px' }}>JJ Cleaning Services LLC</h2>
+        
+        {step === 'contact' ? (
           <div>
-            <label>Bedrooms: </label>
-            <input 
-              type="number" 
-              value={bedrooms} 
-              onChange={(e) => setBedrooms(Number(e.target.value))} 
-              min="1" 
-            />
-          </div>
+            <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '20px' }}>Please enter your details to request a custom cleaning quote.</p>
+            <form onSubmit={handleContactSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '5px', color: '#334155' }}>Full Name</label>
+                <input 
+                  type="text" 
+                  required
+                  value={clientData.name} 
+                  onChange={e => setClientData({...clientData, name: e.target.value})}
+                  placeholder="John Doe"
+                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                />
+              </div>
 
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '5px', color: '#334155' }}>Email Address</label>
+                <input 
+                  type="email" 
+                  required
+                  value={clientData.email} 
+                  onChange={e => setClientData({...clientData, email: e.target.value})}
+                  placeholder="john@example.com"
+                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '5px', color: '#334155' }}>Phone Number</label>
+                <input 
+                  type="tel" 
+                  required
+                  value={clientData.phone} 
+                  onChange={e => setClientData({...clientData, phone: e.target.value})}
+                  placeholder="(555) 000-0000"
+                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '5px', color: '#334155' }}>Service Address</label>
+                <input 
+                  type="text" 
+                  required
+                  value={clientData.address} 
+                  onChange={e => setClientData({...clientData, address: e.target.value})}
+                  placeholder="123 Main St, City, State"
+                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                style={{ background: '#2563eb', color: 'white', border: 'none', padding: '12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', marginTop: '10px' }}
+              >
+                Next: Property Details
+              </button>
+            </form>
+          </div>
+        ) : (
           <div>
-            <label>Bathrooms: </label>
-            <input 
-              type="number" 
-              value={bathrooms} 
-              onChange={(e) => setBathrooms(Number(e.target.value))} 
-              min="1" 
-            />
-          </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>Welcome, <b>{clientData.name}</b></p>
+              <button 
+                onClick={() => setStep('contact')} 
+                style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '13px', textDecoration: 'underline' }}
+              >
+                Edit Info
+              </button>
+            </div>
 
-          <div>
-            <label>Square Footage: </label>
-            <input 
-              type="number" 
-              value={sqft} 
-              onChange={(e) => setSqft(Number(e.target.value))} 
-              min="100" 
-            />
-          </div>
+            <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '20px' }}>Select your property layout for your custom quote request.</p>
 
-          <div>
-            <label>Custom Price Override ($): </label>
-            <input 
-              type="number" 
-              value={customPriceOverride} 
-              onChange={(e) => setCustomPriceOverride(e.target.value)} 
-              placeholder="Optional override" 
-            />
-          </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '5px', color: '#334155' }}>Bedrooms: {bedrooms}</label>
+                <input 
+                  type="range" min="1" max="10" value={bedrooms} 
+                  onChange={e => setBedrooms(parseInt(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+              </div>
 
-          <div style={{ fontSize: '1.2em', fontWeight: 'bold', margin: '10px 0' }}>
-            Estimated Total: ${finalTotal.toFixed(2)}
-          </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '5px', color: '#334155' }}>Bathrooms: {bathrooms}</label>
+                <input 
+                  type="range" min="1" max="10" step="0.5" value={bathrooms} 
+                  onChange={e => setBathrooms(parseFloat(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+              </div>
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            style={{ padding: '12px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-          >
-            {loading ? 'Submitting...' : 'Request Booking & Lock Quote'}
-          </button>
-        </form>
-      )}
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '5px', color: '#334155' }}>Square Footage: {sqft} sq ft</label>
+                <input 
+                  type="number" value={sqft} 
+                  onChange={e => setSqft(parseInt(e.target.value) || 0)}
+                  style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <button 
+                onClick={handleBookingSubmit}
+                disabled={submitting}
+                style={{ background: '#16a34a', color: 'white', border: 'none', padding: '14px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px', marginTop: '15px' }}
+              >
+                {submitting ? 'Submitting...' : 'Submit Quote Request'}
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }
