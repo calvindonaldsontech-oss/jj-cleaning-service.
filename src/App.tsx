@@ -9,7 +9,7 @@ export default function App() {
     name: '',
     email: '',
     phone: '',
-    address: ''
+    address: '',comments: '',
   });
 
   const [bedrooms, setBedrooms] = useState(2);
@@ -202,6 +202,32 @@ export default function App() {
                 style={{ background: '#16a34a', color: 'white', border: 'none', padding: '14px', borderRadius: '8px', fontWeight: '600', fontSize: '16px', cursor: 'pointer', marginTop: '10px', boxShadow: '0 4px 12px rgba(22, 163, 74, 0.2)' }}
               >
                 {submitting ? 'Submitting Request...' : 'Submit Quote Request'}
+                <div style={{ marginBottom: '16px' }}>
+  <label
+    htmlFor="comments"
+    style={{ display: 'block', marginBottom: '6px', fontWeight: 500 }}
+  >
+    Comments / Special Instructions
+  </label>
+  <textarea
+    id="comments"
+    name="comments"
+    rows={3}
+    value={clientData.comments}
+    onChange={(e) =>
+      setClientData({ ...clientData, comments: e.target.value })
+    }
+    placeholder="Pets, gate code, or cleaning notes..."
+    style={{
+      width: '100%',
+      padding: '10px',
+      borderRadius: '6px',
+      border: '1px solid #d1d5db',
+      fontFamily: 'inherit',
+      boxSizing: 'border-box',
+    }}
+  />
+</div>
               </button>
             </div>
           </div>
